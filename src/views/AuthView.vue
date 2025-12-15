@@ -14,8 +14,8 @@
     <div class="flex flex-col items-center justify-center p-8 md:p-12">
       <div class="max-w-md w-full text-center space-y-8">
         <div class="space-y-2">
-          <h1 class="text-4xl md:text-5xl font-bold tracking-tight text-black">
-            Mausee
+          <h1 class="text-4xl md:text-5xl font-bold tracking-tight text-black font-handwriting">
+            Mousee
           </h1>
           <p class="text-xl text-gray-500">
             {{ t('envelope_method') }}

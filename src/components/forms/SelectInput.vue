@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full">
+  <div ref="rootRef" class="w-full">
     <div
       class="relative"
       :class="{
@@ -142,6 +142,7 @@ const isOpen = ref(false)
 const highlightedIndex = ref(-1)
 const searchTerm = ref('')
 const dropdownId = `select-${Math.random().toString(36).slice(2, 8)}`
+const rootRef = ref<HTMLElement | null>(null)
 
 const filteredOptions = computed(() => {
   if (!props.searchable || !searchTerm.value.trim()) {
@@ -235,8 +236,6 @@ const handleClickOutside = (event: MouseEvent) => {
     closeDropdown()
   }
 }
-
-const rootRef = ref<HTMLElement | null>(null)
 
 const emitFocus = () => emit('focus')
 const emitBlur = () => emit('blur')
