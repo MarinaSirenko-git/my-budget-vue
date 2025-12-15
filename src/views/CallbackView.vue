@@ -193,4 +193,3 @@ const fetchUserAndRedirect = async () => {
 
 onMounted(fetchUserAndRedirect)
 </script>
-
