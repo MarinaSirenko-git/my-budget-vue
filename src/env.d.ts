@@ -9,3 +9,5 @@ interface ImportMeta {
   readonly env: ImportMetaEnv
 }
 
+// Type shim for i18next-vue until upstream typings are available
+

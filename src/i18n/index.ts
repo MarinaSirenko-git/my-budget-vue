@@ -1,5 +1,5 @@
-import { createI18n } from 'vue-i18next'
-import i18next from 'i18next'
+import type { App } from 'vue'
+import i18next, { type TFunction } from 'i18next'
 
 // Initialize i18next
 i18next.init({
@@ -8,19 +8,35 @@ i18next.init({
   resources: {
     en: {
       translation: {
-        welcome: 'Welcome to My Budget'
+        welcome: 'Welcome to My Budget',
+        envelope_method: 'Envelope method in action!',
+        continue_with_google: 'Continue with Google',
+        redirecting_title: 'Redirecting...',
+        redirecting_message: 'Checking your session and preparing your workspace.'
       }
     },
     ru: {
       translation: {
-        welcome: 'Добро пожаловать в Мой Бюджет'
+        welcome: 'Добро пожаловать в Мой Бюджет',
+        envelope_method: 'Метод конвертов в действии!',
+        continue_with_google: 'Продолжить через Google',
+        redirecting_title: 'Перенаправляем...',
+        redirecting_message: 'Проверяем вашу сессию и готовим рабочее пространство.'
       }
     }
   }
 })
 
-// Create vue-i18next instance
-const i18n = createI18n(i18next)
+// Simple plugin to expose i18next via Vue global properties
+export default {
+  install(app: App) {
+    app.config.globalProperties.$t = i18next.t.bind(i18next)
+  },
+}
 
-export default i18n
+// Composition helper for components
+export const useTranslation = () => {
+  const t = i18next.t.bind(i18next) as TFunction
+  return { t }
+}
 
