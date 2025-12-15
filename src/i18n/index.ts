@@ -12,7 +12,11 @@ i18next.init({
         envelope_method: 'Envelope method in action!',
         continue_with_google: 'Continue with Google',
         redirecting_title: 'Redirecting...',
-        redirecting_message: 'Checking your session and preparing your workspace.'
+        redirecting_message: 'Checking your session and preparing your workspace.',
+        detecting_language_message: 'Determining your interface language...',
+        detecting_scenario_message: 'Determining your current scenario...',
+        base_currency_setup_message: 'Welcome! Base currency setup is coming soon.',
+        scenario_slug_error_message: 'Could not fetch scenario slug. Please try again.'
       }
     },
     ru: {
@@ -21,7 +25,11 @@ i18next.init({
         envelope_method: 'Метод конвертов в действии!',
         continue_with_google: 'Продолжить через Google',
         redirecting_title: 'Перенаправляем...',
-        redirecting_message: 'Проверяем вашу сессию и готовим рабочее пространство.'
+        redirecting_message: 'Проверяем вашу сессию и готовим рабочее пространство.',
+        detecting_language_message: 'Определяем язык вашего интерфейса...',
+        detecting_scenario_message: 'Определяем ваш текущий сценарий...',
+        base_currency_setup_message: 'Добро пожаловать! Скоро выберем базовую валюту.',
+        scenario_slug_error_message: 'Не удалось получить slug сценария. Попробуйте ещё раз.'
       }
     }
   }

@@ -18,7 +18,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/CallbackView.vue')
   },
   {
-    path: '/income',
+    path: '/:slug/income',
     name: 'income',
     component: () => import('../views/IncomeView.vue')
   }
