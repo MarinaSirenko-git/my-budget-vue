@@ -16,7 +16,14 @@ i18next.init({
         detecting_language_message: 'Determining your interface language...',
         detecting_scenario_message: 'Determining your current scenario...',
         base_currency_setup_message: 'Welcome! Base currency setup is coming soon.',
-        scenario_slug_error_message: 'Could not fetch scenario slug. Please try again.'
+        scenario_slug_error_message: 'Could not fetch scenario slug. Please try again.',
+        base_currency_setup_title: 'Choose base currency',
+        base_currency_setup_description: 'You can add income, expenses, and savings in any currency. To see consolidated totals, choose a base currency. You can change it later in your account settings.',
+        select_currency_placeholder: 'Select a currency',
+        select_currency_helper: 'This will be used as your base currency.',
+        select_currency_error: 'Please choose a currency.',
+        cancel: 'Cancel',
+        continue: 'Continue'
       }
     },
     ru: {
@@ -29,7 +36,14 @@ i18next.init({
         detecting_language_message: 'Определяем язык вашего интерфейса...',
         detecting_scenario_message: 'Определяем ваш текущий сценарий...',
         base_currency_setup_message: 'Добро пожаловать! Скоро выберем базовую валюту.',
-        scenario_slug_error_message: 'Не удалось получить slug сценария. Попробуйте ещё раз.'
+        scenario_slug_error_message: 'Не удалось получить slug сценария. Попробуйте ещё раз.',
+        base_currency_setup_title: 'Выберите базовую валюту',
+        base_currency_setup_description: 'Вы можете вносить доходы, расходы и накопления в любой валюте. Чтобы подвести общие итоги, выберите базовую валюту. Её можно будет поменять в настройках личного кабинета.',
+        select_currency_placeholder: 'Выберите валюту',
+        select_currency_helper: 'Она будет использоваться как базовая валюта.',
+        select_currency_error: 'Пожалуйста, выберите валюту.',
+        cancel: 'Отмена',
+        continue: 'Продолжить'
       }
     }
   }
