@@ -83,7 +83,15 @@ i18next.init({
         income_form_frequency_label: 'Frequency',
         income_form_date_label: 'Payment Day',
         income_form_date_helper: 'Select the day of the month when you receive this income (e.g., 5th for salary on the 5th of each month)',
-        income_form_submit: 'Add Income'
+        income_form_submit: 'Add Income',
+        savings_form_title: 'Add Savings',
+        savings_form_name_label: 'Savings Name',
+        savings_form_amount_label: 'Amount',
+        savings_form_currency_label: 'Currency',
+        savings_form_interest_label: 'Are the money earning interest in the bank?',
+        savings_form_interest_rate_label: 'Interest Rate (annual, %)',
+        savings_form_capitalization_period_label: 'Capitalization Period',
+        savings_form_submit: 'Add Savings'
       }
     },
     ru: {
@@ -163,7 +171,15 @@ i18next.init({
         income_form_frequency_label: 'Частота',
         income_form_date_label: 'День поступления платежа',
         income_form_date_helper: 'Выберите число месяца, когда вы получаете этот доход (например, 5-е для зарплаты, которая приходит 5-го числа каждого месяца)',
-        income_form_submit: 'Добавить доход'
+        income_form_submit: 'Добавить доход',
+        savings_form_title: 'Добавить накопления',
+        savings_form_name_label: 'Название накопления',
+        savings_form_amount_label: 'Сумма накопления',
+        savings_form_currency_label: 'Валюта накопления',
+        savings_form_interest_label: 'Лежат ли деньги под проценты в банке',
+        savings_form_interest_rate_label: 'Процентная ставка (годовая, %)',
+        savings_form_capitalization_period_label: 'Период капитализации',
+        savings_form_submit: 'Добавить накопления'
       }
     }
   }
