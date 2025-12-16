@@ -69,7 +69,10 @@ i18next.init({
         income_empty_add_first: 'Add your first income',
         savings_empty_title: 'No savings yet',
         savings_empty_subtitle: 'Add your existing savings. Currently, this data is used to show the overall budget picture, and the functionality will be enhanced in the future.',
-        savings_empty_add_first: 'Add savings'
+        savings_empty_add_first: 'Add savings',
+        expense_empty_title: 'No expenses yet',
+        expense_empty_subtitle: 'Create expense categories and set a monthly limit for each. This is the envelope method — allocate your budget by category, not by tracking every purchase.',
+        expense_empty_add_first: 'Add your first expense'
       }
     },
     ru: {
@@ -135,7 +138,10 @@ i18next.init({
         income_empty_add_first: 'Добавить первый доход',
         savings_empty_title: 'Накоплений пока нет',
         savings_empty_subtitle: 'Добавь уже имеющиеся накопления. Сейчас эти данные используются для общей картины бюджета, в будущем функционал будет расширен.',
-        savings_empty_add_first: 'Добавить накопления'
+        savings_empty_add_first: 'Добавить накопления',
+        expense_empty_title: 'Расходов пока нет',
+        expense_empty_subtitle: 'Создай категории расходов и установи месячный лимит для каждой. Это метод конвертов — распределяй бюджет по категориям, а не отслеживай каждую покупку.',
+        expense_empty_add_first: 'Добавить первый расход'
       }
     }
   }
