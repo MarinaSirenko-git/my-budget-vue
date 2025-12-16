@@ -196,10 +196,12 @@ watch(showModal, (isOpen) => {
     }
   } else {
     // Set default currency from scenario when modal opens, if not already set
-    if (!formData.value.currency && scenario.value?.base_currency) {
-      const scenarioCurrency = scenario.value.base_currency as CurrencyCode
-      if (currencyOptions.some(opt => opt.value === scenarioCurrency)) {
+    if (!formData.value.currency) {
+      const scenarioCurrency = scenario.value?.base_currency as CurrencyCode | null | undefined
+      if (scenarioCurrency && currencyOptions.some(opt => opt.value === scenarioCurrency)) {
         formData.value.currency = scenarioCurrency
+      } else if (currencyOptions.length > 0) {
+        formData.value.currency = currencyOptions[0].value
       }
     }
   }
@@ -229,6 +231,15 @@ const canSubmit = computed(() => {
 })
 
 const handleAddSavings = () => {
+  // Set default currency from scenario base_currency, or first option if available
+  if (!formData.value.currency) {
+    const scenarioCurrency = scenario.value?.base_currency as CurrencyCode | null | undefined
+    if (scenarioCurrency && currencyOptions.some(opt => opt.value === scenarioCurrency)) {
+      formData.value.currency = scenarioCurrency
+    } else if (currencyOptions.length > 0) {
+      formData.value.currency = currencyOptions[0].value
+    }
+  }
   showModal.value = true
 }
 
