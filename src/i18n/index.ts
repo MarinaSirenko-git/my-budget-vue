@@ -72,7 +72,10 @@ i18next.init({
         savings_empty_add_first: 'Add savings',
         expense_empty_title: 'No expenses yet',
         expense_empty_subtitle: 'Create expense categories and set a monthly limit for each. This is the envelope method — allocate your budget by category, not by tracking every purchase.',
-        expense_empty_add_first: 'Add your first expense'
+        expense_empty_add_first: 'Add your first expense',
+        goal_empty_title: 'No goals yet',
+        goal_empty_subtitle: 'Set your financial goals and track your progress towards achieving them.',
+        goal_empty_add_first: 'Add goal'
       }
     },
     ru: {
@@ -141,7 +144,10 @@ i18next.init({
         savings_empty_add_first: 'Добавить накопления',
         expense_empty_title: 'Расходов пока нет',
         expense_empty_subtitle: 'Создай категории расходов и установи месячный лимит для каждой. Это метод конвертов — распределяй бюджет по категориям, а не отслеживай каждую покупку.',
-        expense_empty_add_first: 'Добавить первый расход'
+        expense_empty_add_first: 'Добавить первый расход',
+        goal_empty_title: 'Целей пока нет',
+        goal_empty_subtitle: 'Установи свои финансовые цели и отслеживай прогресс их достижения.',
+        goal_empty_add_first: 'Добавить цель'
       }
     }
   }
