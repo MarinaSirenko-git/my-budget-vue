@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex">
+  <div class="h-screen bg-gray-50 flex overflow-hidden">
     <!-- Sidebar -->
-    <aside class="w-64 bg-white border-r border-gray-200 h-screen">
+    <aside class="w-64 bg-white border-r border-gray-200 h-full overflow-y-auto flex-shrink-0">
       <div class="h-full flex flex-col">
         <div class="px-4 py-4 border-b border-gray-200 max-h-[60px]">
           <h2 class="text-xl font-bold text-gray-900 font-handwriting">Mousee</h2>
@@ -108,7 +108,7 @@
     </aside>
 
     <!-- Main Content Area -->
-    <div class="flex-1 flex flex-col min-w-0 h-screen">
+    <div class="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
       <!-- Header -->
       <header class="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0 min-h-[60px] max-h-[60px] flex items-center">
         <div class="flex items-center justify-between w-full">
