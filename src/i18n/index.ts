@@ -63,7 +63,10 @@ i18next.init({
         scenario_currency_label: 'Base currency',
         not_found_title: '404 - Page Not Found',
         not_found_message: 'Oops! The page you are looking for seems to have disappeared. Our little mouse couldn\'t find it either.',
-        not_found_back_home: 'Back to Home'
+        not_found_back_home: 'Back to Home',
+        income_empty_title: 'No income yet',
+        income_empty_subtitle: 'Add both monthly and annual income. In any currency. Choose a source from the examples below, edit it, or add your own.',
+        income_empty_add_first: 'Add your first income'
       }
     },
     ru: {
@@ -123,7 +126,10 @@ i18next.init({
         scenario_currency_label: 'Базовая валюта',
         not_found_title: '404 - Страница не найдена',
         not_found_message: 'Упс! Страница, которую вы ищете, похоже, исчезла. Наша маленькая мышка тоже не смогла её найти.',
-        not_found_back_home: 'Вернуться на главную'
+        not_found_back_home: 'Вернуться на главную',
+        income_empty_title: 'Доходов пока нет',
+        income_empty_subtitle: 'Добавляй как ежемесячные доходы, так и ежегодные. В любой валюте. Бери источник из примера ниже, редактируй или добавляй свой.',
+        income_empty_add_first: 'Добавить первый доход'
       }
     }
   }
