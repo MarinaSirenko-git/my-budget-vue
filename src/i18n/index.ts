@@ -66,7 +66,10 @@ i18next.init({
         not_found_back_home: 'Back to Home',
         income_empty_title: 'No income yet',
         income_empty_subtitle: 'Add both monthly and annual income. In any currency. Choose a source from the examples below, edit it, or add your own.',
-        income_empty_add_first: 'Add your first income'
+        income_empty_add_first: 'Add your first income',
+        savings_empty_title: 'No savings yet',
+        savings_empty_subtitle: 'Add your existing savings. Currently, this data is used to show the overall budget picture, and the functionality will be enhanced in the future.',
+        savings_empty_add_first: 'Add savings'
       }
     },
     ru: {
@@ -129,7 +132,10 @@ i18next.init({
         not_found_back_home: 'Вернуться на главную',
         income_empty_title: 'Доходов пока нет',
         income_empty_subtitle: 'Добавляй как ежемесячные доходы, так и ежегодные. В любой валюте. Бери источник из примера ниже, редактируй или добавляй свой.',
-        income_empty_add_first: 'Добавить первый доход'
+        income_empty_add_first: 'Добавить первый доход',
+        savings_empty_title: 'Накоплений пока нет',
+        savings_empty_subtitle: 'Добавь уже имеющиеся накопления. Сейчас эти данные используются для общей картины бюджета, в будущем функционал будет расширен.',
+        savings_empty_add_first: 'Добавить накопления'
       }
     }
   }

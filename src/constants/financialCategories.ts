@@ -146,7 +146,7 @@ export const EXPENSE_CATEGORIES: ExpenseCategoryData[] = [
   },
   {
     id: 'custom',
-    value: 'Custom',
+    value: 'custom',
     labels: { en: 'Custom', ru: 'Прочее' },
     isCustom: true,
   },
