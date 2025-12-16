@@ -9,7 +9,7 @@
       <button
         ref="triggerRef"
         type="button"
-        class="w-full border rounded-xl px-4 py-3 text-left flex items-center justify-between gap-2 transition-colors"
+        class="w-full border rounded-xl px-4 py-3 text-sm text-left flex items-center justify-between gap-2 transition-colors"
         :class="[
           error
             ? 'border-red-400 focus:ring-red-200'
@@ -25,7 +25,7 @@
         @focus="emitFocus"
         @blur="emitBlur"
       >
-        <span class="truncate">
+        <span class="truncate text-sm">
           {{ selectedOption?.label ?? placeholder }}
         </span>
         <svg

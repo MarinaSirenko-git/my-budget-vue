@@ -75,7 +75,15 @@ i18next.init({
         expense_empty_add_first: 'Add your first expense',
         goal_empty_title: 'No goals yet',
         goal_empty_subtitle: 'Set your financial goals and track your progress towards achieving them.',
-        goal_empty_add_first: 'Add goal'
+        goal_empty_add_first: 'Add goal',
+        income_form_title: 'Add Income',
+        income_form_category_label: 'Category',
+        income_form_amount_label: 'Amount',
+        income_form_currency_label: 'Currency',
+        income_form_frequency_label: 'Frequency',
+        income_form_date_label: 'Payment Day',
+        income_form_date_helper: 'Select the day of the month when you receive this income (e.g., 5th for salary on the 5th of each month)',
+        income_form_submit: 'Add Income'
       }
     },
     ru: {
@@ -147,7 +155,15 @@ i18next.init({
         expense_empty_add_first: 'Добавить первый расход',
         goal_empty_title: 'Целей пока нет',
         goal_empty_subtitle: 'Установи свои финансовые цели и отслеживай прогресс их достижения.',
-        goal_empty_add_first: 'Добавить цель'
+        goal_empty_add_first: 'Добавить цель',
+        income_form_title: 'Добавить доход',
+        income_form_category_label: 'Категория',
+        income_form_amount_label: 'Сумма',
+        income_form_currency_label: 'Валюта',
+        income_form_frequency_label: 'Частота',
+        income_form_date_label: 'День поступления платежа',
+        income_form_date_helper: 'Выберите число месяца, когда вы получаете этот доход (например, 5-е для зарплаты, которая приходит 5-го числа каждого месяца)',
+        income_form_submit: 'Добавить доход'
       }
     }
   }
