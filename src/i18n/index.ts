@@ -103,7 +103,25 @@ i18next.init({
         savings_form_interest_label: 'Are the money earning interest in the bank?',
         savings_form_interest_rate_label: 'Interest Rate (annual, %)',
         savings_form_capitalization_period_label: 'Capitalization Period',
-        savings_form_submit: 'Add Savings'
+        savings_form_submit: 'Add Savings',
+        idea_title: 'How does it work?',
+        idea_envelope_method_title: 'What is the envelope method?',
+        idea_envelope_method_text: 'Imagine you have several envelopes, and you put money in each one for specific purposes: groceries, entertainment, transportation. The envelope method works exactly like that — you decide in advance how much you\'ll spend on each category and stick to that plan. This helps you avoid spending more than planned and always know how much money is left for each goal. Simple, clear, and very effective!',
+        idea_always_available_title: 'Always at hand',
+        idea_always_available_text: 'Our app is your digital envelopes that are always with you. Open the app at any time and immediately see how much money you have, where it\'s going, and how much is left for your goals. No need to keep notes in a notebook or remember numbers — everything is stored in the cloud and accessible from your phone, tablet, or computer. Your budget is always in view!',
+        idea_features_title: 'What can the app do?',
+        idea_currency_title: '💱 Working with different currencies',
+        idea_currency_text: 'Getting paid in dollars but spending in rubles? No problem! Add income and expenses in any currency, and the app will automatically convert everything to one currency so you can see the overall picture.',
+        idea_scenarios_title: '📊 Comparing options',
+        idea_scenarios_text: 'Want to know if it\'s better to take a loan or save up? Create several budget scenarios and compare them. This way you\'ll immediately see which option is better for your wallet.',
+        idea_auto_calc_title: '💰 Automatic calculation',
+        idea_auto_calc_text: 'The app automatically calculates your savings, even if you top them up in different currencies and with different frequencies. Just add the information, and we\'ll do the calculations for you.',
+        idea_goals_title: '🎯 Progress towards goals',
+        idea_goals_text: 'Set a goal to save for a vacation or a new car? The app will show how much you\'ve already saved and how much is left. You\'ll always see how close you are to your goal.',
+        idea_security_title: '🔒 Your data is secure',
+        idea_security_text: 'All information about your finances is encrypted before saving. Your data is protected and accessible only to you — no one else will see it.',
+        idea_share_title: '📤 Share with family',
+        idea_share_text: 'Need to show your spouse the current state of your budget? Export the data to a CSV file and send it to them. This will help everyone stay informed about the family\'s financial situation.'
       }
     },
     ru: {
@@ -203,7 +221,25 @@ i18next.init({
         savings_form_interest_label: 'Лежат ли деньги под проценты в банке',
         savings_form_interest_rate_label: 'Процентная ставка (годовая, %)',
         savings_form_capitalization_period_label: 'Период капитализации',
-        savings_form_submit: 'Добавить накопления'
+        savings_form_submit: 'Добавить накопления',
+        idea_title: 'Как это работает?',
+        idea_envelope_method_title: 'Что такое метод конвертов?',
+        idea_envelope_method_text: 'Представьте, что у вас есть несколько конвертов, и в каждый вы кладете деньги на определенные цели: продукты, развлечения, транспорт. Метод конвертов работает именно так — вы заранее решаете, сколько потратите на каждую категорию, и придерживаетесь этого плана. Это помогает не тратить больше, чем планировали, и всегда знать, сколько денег осталось на ту или иную цель. Просто, понятно и очень эффективно!',
+        idea_always_available_title: 'Всегда под рукой',
+        idea_always_available_text: 'Наше приложение — это ваши цифровые конверты, которые всегда с вами. Откройте приложение в любой момент и сразу увидите, сколько у вас денег, куда они уходят и сколько осталось на ваши цели. Не нужно вести записи в блокноте или запоминать цифры — все хранится в облаке и доступно с телефона, планшета или компьютера. Ваш бюджет всегда на виду!',
+        idea_features_title: 'Что умеет приложение?',
+        idea_currency_title: '💱 Работа с разными валютами',
+        idea_currency_text: 'Получаете зарплату в долларах, а тратите в рублях? Не проблема! Добавляйте доходы и расходы в любой валюте, а приложение автоматически переведет все в одну валюту, чтобы вы видели общую картину.',
+        idea_scenarios_title: '📊 Сравнение вариантов',
+        idea_scenarios_text: 'Хотите понять, выгоднее ли взять кредит или накопить? Создайте несколько сценариев бюджета и сравните их. Так вы сразу увидите, какой вариант лучше для вашего кошелька.',
+        idea_auto_calc_title: '💰 Автоматический подсчет',
+        idea_auto_calc_text: 'Приложение само считает ваши накопления, даже если вы пополняете их в разных валютах и с разной периодичностью. Просто добавьте информацию, а подсчеты мы сделаем за вас.',
+        idea_goals_title: '🎯 Прогресс к целям',
+        idea_goals_text: 'Поставили цель накопить на отпуск или новую машину? Приложение покажет, сколько уже накоплено и сколько осталось. Вы всегда будете видеть, насколько близки к своей цели.',
+        idea_security_title: '🔒 Ваши данные в безопасности',
+        idea_security_text: 'Вся информация о ваших финансах шифруется перед сохранением. Ваши данные защищены и доступны только вам — никто другой их не увидит.',
+        idea_share_title: '📤 Поделитесь с семьей',
+        idea_share_text: 'Нужно показать супругу или супруге текущее состояние бюджета? Экспортируйте данные в CSV файл и отправьте им. Это поможет всем быть в курсе финансовой ситуации семьи.'
       }
     }
   }
