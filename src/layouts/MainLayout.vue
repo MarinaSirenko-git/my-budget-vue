@@ -44,6 +44,14 @@
                 {{ t('nav_my_goal') }}
               </router-link>
             </li>
+            <li>
+              <router-link
+                :to="`/${slug}/report`"
+                class="block px-2 py-2 text-gray-700 hover:bg-gray-100 transition rounded-lg"
+              >
+                {{ t('nav_download_report') }}
+              </router-link>
+            </li>
           </ul>
         </nav>
 
@@ -88,12 +96,6 @@
           >
             {{ t('nav_settings') }}
           </router-link>
-          <router-link
-            :to="`/${slug}/report`"
-            class="block px-2 py-2 text-gray-700 hover:bg-gray-100 transition rounded-lg"
-          >
-            {{ t('nav_download_report') }}
-          </router-link>
           <button
             type="button"
             class="w-full text-left px-2 py-2 text-gray-700 hover:bg-gray-100 transition rounded-lg"
@@ -108,13 +110,11 @@
     <!-- Main Content Area -->
     <div class="flex-1 flex flex-col min-w-0">
       <!-- Header -->
-      <header class="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0 max-h-[60px]">
-        <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-semibold text-gray-900">
-            {{ title }}
-          </h1>
+      <header class="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0 min-h-[60px] max-h-[60px] flex items-center">
+        <div class="flex items-center justify-between w-full">
+          <ScenarioSwitcher />
           <div class="flex items-center gap-4">
-            <!-- Placeholder for user menu or actions -->
+            <ScenarioCreator />
           </div>
         </div>
       </header>
@@ -132,22 +132,13 @@ import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { RouterView } from 'vue-router'
 import { useTranslation } from '@/i18n'
+import ScenarioSwitcher from '@/components/ScenarioSwitcher.vue'
+import ScenarioCreator from '@/components/ScenarioCreator.vue'
 
 const route = useRoute()
 const { t } = useTranslation()
 
 const slug = computed(() => route.params.slug as string)
-const title = computed(() => {
-  const path = route.path
-  if (path.includes('/income')) return t('page_title_income')
-  if (path.includes('/expense')) return t('page_title_expense')
-  if (path.includes('/savings')) return t('page_title_savings')
-  if (path.includes('/goal')) return t('page_title_goal')
-  if (path.includes('/idea')) return t('page_title_idea')
-  if (path.includes('/report')) return t('page_title_report')
-  if (path.includes('/settings')) return t('page_title_settings')
-  return t('page_title_dashboard')
-})
 
 // Mock summary data
 const summary = ref({

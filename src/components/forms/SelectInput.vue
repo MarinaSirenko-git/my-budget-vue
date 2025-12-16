@@ -7,6 +7,7 @@
       }"
     >
       <button
+        ref="triggerRef"
         type="button"
         class="w-full border rounded-xl px-4 py-3 text-left flex items-center justify-between gap-2 transition-colors"
         :class="[
@@ -41,53 +42,57 @@
         </svg>
       </button>
 
-      <div
-        v-if="isOpen"
-        :id="dropdownId"
-        class="absolute mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-64 overflow-auto"
-        role="listbox"
-      >
-        <div v-if="searchable" class="p-2 border-b border-gray-100">
-          <input
-            v-model="searchTerm"
-            type="text"
-            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
-            :placeholder="searchPlaceholder"
-            @keydown.stop
-          />
-        </div>
-        <ul>
-          <li
-            v-for="(option, index) in filteredOptions"
-            :key="option.value"
-            class="px-4 py-2 cursor-pointer flex items-center justify-between"
-            :class="{
-              'bg-gray-100': index === highlightedIndex,
-              'text-gray-900': option.value === modelValue,
-              'text-gray-700': option.value !== modelValue,
-            }"
-            role="option"
-            :aria-selected="option.value === modelValue"
-            @mouseenter="highlightedIndex = index"
-            @mouseleave="highlightedIndex = -1"
-            @click="selectOption(option)"
-          >
-            <span class="truncate">{{ option.label }}</span>
-            <span
-              v-if="option.value === modelValue"
-              class="text-gray-500 text-xs ml-2"
+      <Teleport to="body">
+        <div
+          v-if="isOpen"
+          ref="dropdownRef"
+          :id="dropdownId"
+          class="fixed bg-white border border-gray-200 rounded-xl shadow-lg z-[60] max-h-64 overflow-auto"
+          :style="dropdownStyle"
+          role="listbox"
+        >
+          <div v-if="searchable" class="p-2 border-b border-gray-100">
+            <input
+              v-model="searchTerm"
+              type="text"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+              :placeholder="searchPlaceholder"
+              @keydown.stop
+            />
+          </div>
+          <ul>
+            <li
+              v-for="(option, index) in filteredOptions"
+              :key="option.value"
+              class="px-4 py-2 cursor-pointer flex items-center justify-between"
+              :class="{
+                'bg-gray-100': index === highlightedIndex,
+                'text-gray-900': option.value === modelValue,
+                'text-gray-700': option.value !== modelValue,
+              }"
+              role="option"
+              :aria-selected="option.value === modelValue"
+              @mouseenter="highlightedIndex = index"
+              @mouseleave="highlightedIndex = -1"
+              @click="selectOption(option)"
             >
-              ✓
-            </span>
-          </li>
-          <li
-            v-if="filteredOptions.length === 0"
-            class="px-4 py-3 text-sm text-gray-500"
-          >
-            {{ emptyLabel }}
-          </li>
-        </ul>
-      </div>
+              <span class="truncate">{{ option.label }}</span>
+              <span
+                v-if="option.value === modelValue"
+                class="text-gray-500 text-xs ml-2"
+              >
+                ✓
+              </span>
+            </li>
+            <li
+              v-if="filteredOptions.length === 0"
+              class="px-4 py-3 text-sm text-gray-500"
+            >
+              {{ emptyLabel }}
+            </li>
+          </ul>
+        </div>
+      </Teleport>
     </div>
 
     <p v-if="error" class="mt-2 text-sm text-red-600">
@@ -100,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
 
 export interface SelectOption {
   label: string
@@ -134,8 +139,8 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: string | null): void
   (e: 'open'): void
   (e: 'close'): void
-  (e: 'focus'): void
-  (e: 'blur'): void
+  (e: 'focus', event: FocusEvent): void
+  (e: 'blur', event: FocusEvent): void
 }>()
 
 const isOpen = ref(false)
@@ -143,6 +148,9 @@ const highlightedIndex = ref(-1)
 const searchTerm = ref('')
 const dropdownId = `select-${Math.random().toString(36).slice(2, 8)}`
 const rootRef = ref<HTMLElement | null>(null)
+const triggerRef = ref<HTMLElement | null>(null)
+const dropdownRef = ref<HTMLElement | null>(null)
+const dropdownStyle = ref<{ top: string; left: string; width: string } | null>(null)
 
 const filteredOptions = computed(() => {
   if (!props.searchable || !searchTerm.value.trim()) {
@@ -160,10 +168,50 @@ const selectedOption = computed(() =>
   props.options.find((opt) => opt.value === props.modelValue)
 )
 
-const openDropdown = () => {
+const updateDropdownPosition = () => {
+  if (!triggerRef.value || !dropdownRef.value) return
+
+  const triggerRect = triggerRef.value.getBoundingClientRect()
+  const dropdownRect = dropdownRef.value.getBoundingClientRect()
+  
+  // Calculate position
+  let top = triggerRect.bottom + 4 // mt-1 equivalent (4px)
+  let left = triggerRect.left
+  let width = triggerRect.width
+
+  // Check if dropdown would overflow bottom of viewport
+  const spaceBelow = window.innerHeight - triggerRect.bottom
+  const spaceAbove = triggerRect.top
+  
+  // If not enough space below but more space above, show above
+  if (spaceBelow < 200 && spaceAbove > spaceBelow) {
+    top = triggerRect.top - dropdownRect.height - 4
+  }
+
+  // Ensure dropdown doesn't overflow viewport horizontally
+  if (left + width > window.innerWidth) {
+    left = window.innerWidth - width - 16 // 16px padding
+  }
+  if (left < 16) {
+    left = 16
+  }
+
+  dropdownStyle.value = {
+    top: `${top}px`,
+    left: `${left}px`,
+    width: `${width}px`,
+  }
+}
+
+const openDropdown = async () => {
   if (props.disabled || isOpen.value) return
   isOpen.value = true
   emit('open')
+  
+  // Wait for DOM to update, then calculate position
+  await nextTick()
+  updateDropdownPosition()
+  
   // set initial highlight to selected or first
   const idx = filteredOptions.value.findIndex(
     (opt) => opt.value === props.modelValue
@@ -176,6 +224,7 @@ const closeDropdown = () => {
   isOpen.value = false
   highlightedIndex.value = -1
   searchTerm.value = ''
+  dropdownStyle.value = null
   emit('close')
 }
 
@@ -232,13 +281,26 @@ const onTriggerKeydown = (event: KeyboardEvent) => {
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as Node | null
   const root = rootRef.value
-  if (root && target && !root.contains(target)) {
+  const dropdown = dropdownRef.value
+  if (
+    root &&
+    dropdown &&
+    target &&
+    !root.contains(target) &&
+    !dropdown.contains(target)
+  ) {
     closeDropdown()
   }
 }
 
-const emitFocus = () => emit('focus')
-const emitBlur = () => emit('blur')
+const handleResize = () => {
+  if (isOpen.value) {
+    updateDropdownPosition()
+  }
+}
+
+const emitFocus = (event: FocusEvent) => emit('focus', event)
+const emitBlur = (event: FocusEvent) => emit('blur', event)
 
 watch(
   () => props.options,
@@ -250,9 +312,13 @@ watch(
 
 onMounted(() => {
   document.addEventListener('mousedown', handleClickOutside)
+  window.addEventListener('resize', handleResize)
+  window.addEventListener('scroll', handleResize, true)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', handleClickOutside)
+  window.removeEventListener('resize', handleResize)
+  window.removeEventListener('scroll', handleResize, true)
 })
 </script>
