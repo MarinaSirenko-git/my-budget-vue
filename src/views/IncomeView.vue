@@ -1,7 +1,31 @@
 <template>
   <div class="p-6">
-    <!-- Empty State -->
-    <div class="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8">
+    <!-- Loading State -->
+    <div v-if="isDataLoading" class="flex items-center justify-center min-h-[60vh]">
+      <p>{{ t('loading') }}</p>
+    </div>
+
+    <!-- Incomes List (if incomes exist) -->
+    <div v-else-if="incomes && incomes.length > 0" class="space-y-4 max-w-4xl mx-auto">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">Your Incomes</h2>
+      <div
+        v-for="income in incomes"
+        :key="income.id"
+        class="p-4 bg-gray-50 rounded-lg border border-gray-200"
+      >
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="font-semibold text-gray-900">{{ income.type }}</h3>
+            <p class="text-sm text-gray-600 mt-1">
+              {{ income.amount }} {{ income.currency }} • {{ income.frequency }} • Day {{ income.payment_day }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State (only when loading is complete and no data) -->
+    <div v-else class="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8">
       <!-- Emojis -->
       <div class="text-6xl flex items-center justify-center gap-4">
         <span>🐭</span>
@@ -118,10 +142,10 @@
           <button
             type="button"
             class="px-4 py-2 text-sm rounded-lg bg-black text-white hover:bg-gray-900 transition disabled:opacity-60 disabled:cursor-not-allowed"
-            :disabled="!canSubmit"
+            :disabled="!canSubmit || isSaving"
             @click="handleSubmit"
           >
-            {{ t('income_form_submit') }}
+            {{ isSaving ? t('saving') : t('income_form_submit') }}
           </button>
         </div>
       </template>
@@ -130,12 +154,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, watchEffect } from 'vue'
+import { useQueryClient } from '@tanstack/vue-query'
 import { useTranslation } from '@/i18n'
 import { getIncomeCategories, type IncomeType } from '@/constants/financialCategories'
 import { currencyOptions, type CurrencyCode } from '@/constants/currency'
 import { getFrequencyOptions, type FrequencyCode } from '@/constants/frequency'
 import { useCurrentScenario } from '@/composables/useCurrentScenario'
+import { useIncomes } from '@/composables/useIncomes'
+import { supabase } from '@/composables/useSupabase'
 import i18next from 'i18next'
 import FormModal from '@/components/forms/FormModal.vue'
 import TextInput from '@/components/forms/TextInput.vue'
@@ -143,7 +170,36 @@ import SelectInput from '@/components/forms/SelectInput.vue'
 import CurrencyInput from '@/components/forms/CurrencyInput.vue'
 
 const { t } = useTranslation()
-const { scenario } = useCurrentScenario()
+const { scenario, isLoading: isLoadingScenario } = useCurrentScenario()
+const queryClient = useQueryClient()
+
+// Use incomes composable - передаем computed для реактивности
+const scenarioId = computed(() => {
+  const id = scenario.value?.id
+  return id
+})
+const { incomes, isLoading: isLoadingIncomes, isFetching: isFetchingIncomes } = useIncomes(scenarioId)
+
+// Показываем загрузку если:
+// 1. Загружается scenario (без него не можем загрузить incomes)
+// 2. Идет запрос incomes (isLoading или isFetching)
+// 3. Scenario загружен, но incomes еще undefined (данные еще не загружены)
+const isDataLoading = computed(() => {
+  const result = (() => {
+    // Если scenario загружается, всегда показываем загрузку
+    if (isLoadingScenario.value) return true
+    
+    // Если scenario загружен, но incomes еще undefined - показываем загрузку
+    if (scenario.value && incomes.value === undefined) return true
+    
+    // Если идет запрос, показываем загрузку
+    if (isLoadingIncomes.value || isFetchingIncomes.value) return true
+    
+    return false
+  })()
+  
+  return result
+})
 
 // Get current locale from i18next
 const currentLocale = computed<'en' | 'ru'>(() => {
@@ -180,6 +236,8 @@ const dayOptions = computed(() => {
 // Modal state
 const showModal = ref(false)
 const selectedCategory = ref<IncomeType | null>(null)
+const isSaving = ref(false)
+const saveError = ref<string | null>(null)
 
 // Form data
 const formData = ref({
@@ -251,16 +309,39 @@ const handleCloseModal = () => {
   showModal.value = false
 }
 
-const handleSubmit = () => {
-  if (!canSubmit.value || !selectedCategory.value) return
+const handleSubmit = async () => {
+  if (!canSubmit.value || !selectedCategory.value || !scenario.value) return
 
-  // TODO: Implement saving income when functionality is ready
-  console.log('Submitting income:', {
-    category: selectedCategory.value,
-    ...formData.value,
-  })
+  isSaving.value = true
+  saveError.value = null
 
-  handleCloseModal()
+  try {
+    const { error } = await supabase
+      .from('incomes')
+      .insert({
+        amount: formData.value.amount,
+        currency: formData.value.currency,
+        type: formData.value.categoryName.trim(),
+        frequency: formData.value.frequency || 'monthly',
+        payment_day: formData.value.paymentDay,
+        scenario_id: scenario.value.id,
+      })
+
+    if (error) {
+      throw error
+    }
+
+    // Invalidate incomes query to refresh the list
+    queryClient.invalidateQueries({ queryKey: ['incomes'] })
+
+    handleCloseModal()
+  } catch (error) {
+    console.error('Failed to save income:', error)
+    saveError.value = error instanceof Error ? error.message : 'Failed to save income'
+    // TODO: Show error message to user (e.g., using a toast notification)
+  } finally {
+    isSaving.value = false
+  }
 }
 </script>
 

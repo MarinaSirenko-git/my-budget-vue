@@ -48,6 +48,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useQueryClient } from '@tanstack/vue-query'
 import i18next from 'i18next'
 import { supabase } from '@/composables/useSupabase'
 import { useTranslation } from '@/i18n'
@@ -58,6 +59,7 @@ import { useUserProfile } from '@/composables/useUserProfile'
 
 const { t } = useTranslation()
 const { language: profileLanguage } = useUserProfile()
+const queryClient = useQueryClient()
 
 const router = useRouter()
 const statusMessage = ref(t('redirecting_message'))
@@ -94,6 +96,33 @@ const proceedWithScenario = async () => {
   }
 
   if (!cachedScenario.value?.slug) throw new Error('Scenario slug is missing')
+
+  // Prefetch incomes data before redirect (non-blocking)
+  // This will populate the cache so IncomeView can use it immediately
+  if (cachedScenario.value.id && cachedUserId.value) {
+    queryClient.prefetchQuery({
+      queryKey: ['incomes', cachedUserId.value, cachedScenario.value.id],
+      queryFn: async () => {
+        const { data, error: incomesError } = await supabase
+          .from('incomes_decrypted')
+          .select('*')
+          .eq('user_id', cachedUserId.value!)
+          .eq('scenario_id', cachedScenario.value?.id!)
+          .order('created_at', { ascending: false })
+
+        if (incomesError) {
+          console.error('[CallbackView] prefetchQuery ERROR', incomesError)
+          throw incomesError
+        }
+
+        return data || []
+      },
+      staleTime: 2 * 60 * 1000, // Same as useIncomes
+    }).catch((error) => {
+      // Silently fail - don't block redirect if prefetch fails
+      console.warn('Failed to prefetch incomes:', error)
+    })
+  }
 
   const target = `/${cachedScenario.value.slug}/income`
   await router.replace(target)
