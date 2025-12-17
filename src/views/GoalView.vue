@@ -1,31 +1,12 @@
 <template>
   <div class="p-6">
     <!-- Empty State -->
-    <div class="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8">
-      <!-- Emojis -->
-      <div class="text-6xl flex items-center justify-center gap-4">
-        <span>🐭</span>
-        <span>🎯</span>
-      </div>
-
-      <!-- Title and Subtitle -->
-      <div class="space-y-3 max-w-md">
-        <h1 class="text-2xl font-bold text-gray-900">
-          {{ t('goal_empty_title') }}
-        </h1>
-        <p class="text-md text-gray-600">
-          {{ t('goal_empty_subtitle') }}
-        </p>
-      </div>
-
-      <!-- Add Goal Button -->
-      <button
-        class="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-900 transition-colors text-sm font-medium"
-        @click="handleAddGoal"
-      >
-        {{ t('goal_empty_add_first') }}
-      </button>
-    </div>
+    <EmptyState
+      :emojis="['🐭', '🎯']"
+      :title="t('goal_empty_title')"
+      :subtitle="t('goal_empty_subtitle')"
+      :action-button="{ label: t('goal_empty_add_first'), onClick: handleAddGoal }"
+    />
 
     <!-- Add Goal Modal -->
     <FormModal
@@ -123,6 +104,7 @@ import FormModal from '@/components/forms/FormModal.vue'
 import TextInput from '@/components/forms/TextInput.vue'
 import SelectInput from '@/components/forms/SelectInput.vue'
 import CurrencyInput from '@/components/forms/CurrencyInput.vue'
+import EmptyState from '@/components/EmptyState.vue'
 
 const { t } = useTranslation()
 const { scenario } = useCurrentScenario()

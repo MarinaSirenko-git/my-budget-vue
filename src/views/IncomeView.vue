@@ -25,35 +25,14 @@
     </div>
 
     <!-- Empty State (only when loading is complete and no data) -->
-    <div v-else class="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8">
-      <!-- Emojis -->
-      <div class="text-6xl flex items-center justify-center gap-4">
-        <span>🐭</span>
-        <span>💵</span>
-      </div>
-
-      <!-- Title and Subtitle -->
-      <div class="space-y-3 max-w-md">
-        <h1 class="text-2xl font-bold text-gray-900">
-          {{ t('income_empty_title') }}
-        </h1>
-        <p class="text-md text-gray-600">
-          {{ t('income_empty_subtitle') }}
-        </p>
-      </div>
-
-      <!-- Income Options Tags -->
-      <div class="grid grid-cols-3 gap-3 max-w-2xl">
-        <button
-          v-for="option in incomeOptions"
-          :key="option.id"
-          class="w-full px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-colors text-sm font-medium"
-          @click="handleOptionClick(option)"
-        >
-          {{ option.label }}
-        </button>
-      </div>
-    </div>
+    <EmptyState
+      v-else
+      :emojis="['🐭', '💵']"
+      :title="t('income_empty_title')"
+      :subtitle="t('income_empty_subtitle')"
+      :options="incomeOptionsForEmptyState"
+      @option-click="(option) => handleOptionClick(option as unknown as IncomeType)"
+    />
 
     <!-- Add Income Modal -->
     <FormModal
@@ -154,24 +133,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, watchEffect } from 'vue'
-import { useQueryClient } from '@tanstack/vue-query'
+import { computed } from 'vue'
 import { useTranslation } from '@/i18n'
 import { getIncomeCategories, type IncomeType } from '@/constants/financialCategories'
-import { currencyOptions, type CurrencyCode } from '@/constants/currency'
-import { getFrequencyOptions, type FrequencyCode } from '@/constants/frequency'
+import { currencyOptions } from '@/constants/currency'
+import { getFrequencyOptions } from '@/constants/frequency'
 import { useCurrentScenario } from '@/composables/useCurrentScenario'
 import { useIncomes } from '@/composables/useIncomes'
-import { supabase } from '@/composables/useSupabase'
+import { useIncomeForm } from '@/composables/useIncomeForm'
 import i18next from 'i18next'
 import FormModal from '@/components/forms/FormModal.vue'
 import TextInput from '@/components/forms/TextInput.vue'
 import SelectInput from '@/components/forms/SelectInput.vue'
 import CurrencyInput from '@/components/forms/CurrencyInput.vue'
+import EmptyState from '@/components/EmptyState.vue'
 
 const { t } = useTranslation()
 const { scenario, isLoading: isLoadingScenario } = useCurrentScenario()
-const queryClient = useQueryClient()
 
 // Use incomes composable - передаем computed для реактивности
 const scenarioId = computed(() => {
@@ -217,6 +195,13 @@ const incomeOptions = computed<IncomeType[]>(() => {
   return getIncomeCategories(currentLocale.value)
 })
 
+// Transform income options for EmptyState component
+const incomeOptionsForEmptyState = computed(() => {
+  return incomeOptions.value.map(option => ({
+    ...option, // Include all properties including id and label
+  }))
+})
+
 // Get frequency options
 const frequencyOptions = computed(() => {
   return getFrequencyOptions(currentLocale.value)
@@ -233,116 +218,16 @@ const dayOptions = computed(() => {
   })
 })
 
-// Modal state
-const showModal = ref(false)
-const selectedCategory = ref<IncomeType | null>(null)
-const isSaving = ref(false)
-const saveError = ref<string | null>(null)
-
-// Form data
-const formData = ref({
-  categoryName: '',
-  amount: null as number | null,
-  currency: null as CurrencyCode | null,
-  frequency: null as FrequencyCode | null,
-  paymentDay: null as string | null,
-})
-
-// Reset form when modal closes
-watch(showModal, (isOpen) => {
-  if (!isOpen) {
-    selectedCategory.value = null
-    formData.value = {
-      categoryName: '',
-      amount: null,
-      currency: null,
-      frequency: null,
-      paymentDay: null,
-    }
-  } else {
-    // Set default currency from scenario when modal opens, if not already set
-    if (!formData.value.currency && scenario.value?.base_currency) {
-      const scenarioCurrency = scenario.value.base_currency as CurrencyCode
-      if (currencyOptions.some(opt => opt.value === scenarioCurrency)) {
-        formData.value.currency = scenarioCurrency
-      }
-    }
-  }
-})
-
-const canSubmit = computed(() => {
-  return (
-    formData.value.categoryName.trim() !== '' &&
-    formData.value.amount !== null &&
-    formData.value.amount > 0 &&
-    formData.value.currency !== null &&
-    formData.value.frequency !== null &&
-    formData.value.paymentDay !== null
-  )
-})
-
-const handleOptionClick = (option: IncomeType) => {
-  selectedCategory.value = option
-  // Set category name from selected option, but leave empty if it's custom
-  if (option.isCustom) {
-    formData.value.categoryName = ''
-  } else {
-    formData.value.categoryName = option.label
-  }
-  // Set default currency from scenario base_currency, or first option if available
-  if (!formData.value.currency) {
-    const scenarioCurrency = scenario.value?.base_currency as CurrencyCode | null | undefined
-    if (scenarioCurrency && currencyOptions.some(opt => opt.value === scenarioCurrency)) {
-      formData.value.currency = scenarioCurrency
-    } else if (currencyOptions.length > 0) {
-      formData.value.currency = currencyOptions[0].value
-    }
-  }
-  // Set default frequency to monthly if available
-  if (frequencyOptions.value.length > 0 && !formData.value.frequency) {
-    formData.value.frequency = 'monthly'
-  }
-  showModal.value = true
-}
-
-const handleCloseModal = () => {
-  showModal.value = false
-}
-
-const handleSubmit = async () => {
-  if (!canSubmit.value || !selectedCategory.value || !scenario.value) return
-
-  isSaving.value = true
-  saveError.value = null
-
-  try {
-    const { error } = await supabase
-      .from('incomes')
-      .insert({
-        amount: formData.value.amount,
-        currency: formData.value.currency,
-        type: formData.value.categoryName.trim(),
-        frequency: formData.value.frequency || 'monthly',
-        payment_day: formData.value.paymentDay,
-        scenario_id: scenario.value.id,
-      })
-
-    if (error) {
-      throw error
-    }
-
-    // Invalidate incomes query to refresh the list
-    queryClient.invalidateQueries({ queryKey: ['incomes'] })
-
-    handleCloseModal()
-  } catch (error) {
-    console.error('Failed to save income:', error)
-    saveError.value = error instanceof Error ? error.message : 'Failed to save income'
-    // TODO: Show error message to user (e.g., using a toast notification)
-  } finally {
-    isSaving.value = false
-  }
-}
+// Use income form composable
+const {
+  formData,
+  isSaving,
+  showModal,
+  canSubmit,
+  handleOptionClick,
+  handleCloseModal,
+  handleSubmit,
+} = useIncomeForm(scenarioId, scenario, frequencyOptions)
 </script>
 
 
