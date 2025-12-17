@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import i18next from 'i18next'
 import { supabase } from '@/composables/useSupabase'
@@ -54,8 +54,10 @@ import { useTranslation } from '@/i18n'
 import { currencyOptions, type CurrencyCode } from '@/constants/currency'
 import FormModal from '@/components/forms/FormModal.vue'
 import SelectInput from '@/components/forms/SelectInput.vue'
+import { useUserProfile } from '@/composables/useUserProfile'
 
 const { t } = useTranslation()
+const { language: profileLanguage } = useUserProfile()
 
 const router = useRouter()
 const statusMessage = ref(t('redirecting_message'))
@@ -66,6 +68,7 @@ const selectedCurrency = ref<CurrencyCode | null>('USD')
 const baseCurrencyError = ref<string | null>(null)
 const cachedUserId = ref<string | null>(null)
 const cachedScenario = ref<{ id: string; slug: string; base_currency?: CurrencyCode | null } | null>(null)
+const languageSet = ref(false)
 
 const proceedWithScenario = async () => {
   if (!cachedUserId.value) return
@@ -140,17 +143,12 @@ const fetchUserAndRedirect = async () => {
     const isNewUser = Date.now() - createdAt < NEW_USER_WINDOW_MS
     cachedUserId.value = data.user.id
 
-    // Get user profile to set language
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('language')
-      .eq('id', data.user.id)
-      .maybeSingle()
-
-    if (profileError) throw profileError
-    if (profile?.language) {
-      await i18next.changeLanguage(profile.language)
+    // Wait for profile to load and set language
+    // Profile is loaded via useUserProfile composable with caching
+    if (profileLanguage.value) {
+      await i18next.changeLanguage(profileLanguage.value)
       statusMessage.value = t('detecting_language_message')
+      languageSet.value = true
     }
 
     // Preload first scenario to pick up existing base currency (if any)
@@ -190,6 +188,19 @@ const fetchUserAndRedirect = async () => {
     setTimeout(() => router.replace('/auth'), 1500)
   }
 }
+
+// Watch for profile language to be loaded
+watch(
+  profileLanguage,
+  async (newLanguage) => {
+    if (newLanguage && !languageSet.value) {
+      await i18next.changeLanguage(newLanguage)
+      statusMessage.value = t('detecting_language_message')
+      languageSet.value = true
+    }
+  },
+  { immediate: true }
+)
 
 onMounted(fetchUserAndRedirect)
 </script>

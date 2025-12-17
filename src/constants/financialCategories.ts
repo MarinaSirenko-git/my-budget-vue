@@ -54,7 +54,7 @@ export const INCOME_CATEGORIES: IncomeCategoryData[] = [
   {
     id: 'digital-product-sales',
     value: 'digital-product-sales',
-    labels: { en: 'Digital Product Sales', ru: 'Продажа цифровых продуктов' },
+    labels: { en: 'Digital Product Sales', ru: 'Цифровых продуктов' },
     isCustom: false,
   },
   {
@@ -99,7 +99,7 @@ export const EXPENSE_CATEGORIES: ExpenseCategoryData[] = [
   {
     id: 'personal-pocket-money',
     value: 'personal-pocket-money',
-    labels: { en: 'Personal Pocket Money', ru: 'Личные карманные деньги' },
+    labels: { en: 'Personal Pocket Money', ru: 'Карманные деньги' },
     isCustom: false,
   },
   {

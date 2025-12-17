@@ -1,9 +1,20 @@
 import type { App } from 'vue'
+import { ref, computed } from 'vue'
 import i18next, { type TFunction } from 'i18next'
+
+// Get saved language from localStorage or use default
+const getSavedLanguage = (): string => {
+  if (typeof window === 'undefined') return 'en'
+  const saved = localStorage.getItem('userLanguage')
+  if (saved === 'en' || saved === 'ru') {
+    return saved
+  }
+  return 'en'
+}
 
 // Initialize i18next
 i18next.init({
-  lng: 'en',
+  lng: getSavedLanguage(),
   fallbackLng: 'en',
   resources: {
     en: {
@@ -121,7 +132,17 @@ i18next.init({
         idea_security_title: '🔒 Your data is secure',
         idea_security_text: 'All information about your finances is encrypted before saving. Your data is protected and accessible only to you — no one else will see it.',
         idea_share_title: '📤 Share with family',
-        idea_share_text: 'Need to show your spouse the current state of your budget? Export the data to a CSV file and send it to them. This will help everyone stay informed about the family\'s financial situation.'
+        idea_share_text: 'Need to show your spouse the current state of your budget? Export the data to a CSV file and send it to them. This will help everyone stay informed about the family\'s financial situation.',
+        settings_email_label: 'Email',
+        settings_email_placeholder: 'Your email address',
+        settings_email_helper: 'This email cannot be changed',
+        settings_scenario_name_label: 'Scenario Name',
+        settings_scenario_name_placeholder: 'Enter scenario name',
+        settings_currency_label: 'Scenario Currency',
+        settings_language_label: 'Interface Language',
+        settings_language_placeholder: 'Select language',
+        save: 'Save',
+        saving: 'Saving...'
       }
     },
     ru: {
@@ -226,7 +247,7 @@ i18next.init({
         idea_envelope_method_title: 'Что такое метод конвертов?',
         idea_envelope_method_text: 'Представьте, что у вас есть несколько конвертов, и в каждый вы кладете деньги на определенные цели: продукты, развлечения, транспорт. Метод конвертов работает именно так — вы заранее решаете, сколько потратите на каждую категорию, и придерживаетесь этого плана. Это помогает не тратить больше, чем планировали, и всегда знать, сколько денег осталось на ту или иную цель. Просто, понятно и очень эффективно!',
         idea_always_available_title: 'Всегда под рукой',
-        idea_always_available_text: 'Наше приложение — это ваши цифровые конверты, которые всегда с вами. Откройте приложение в любой момент и сразу увидите, сколько у вас денег, куда они уходят и сколько осталось на ваши цели. Не нужно вести записи в блокноте или запоминать цифры — все хранится в облаке и доступно с телефона, планшета или компьютера. Ваш бюджет всегда на виду!',
+        idea_always_available_text: 'Приложение — это ваши цифровые конверты, которые всегда с вами. Откройте приложение в любой момент и сразу увидите, сколько у вас денег, куда они уходят и сколько осталось на ваши цели. Не нужно вести записи в блокноте или запоминать цифры — все хранится в облаке и доступно с телефона, планшета или компьютера. Ваш бюджет всегда на виду!',
         idea_features_title: 'Что умеет приложение?',
         idea_currency_title: '💱 Работа с разными валютами',
         idea_currency_text: 'Получаете зарплату в долларах, а тратите в рублях? Не проблема! Добавляйте доходы и расходы в любой валюте, а приложение автоматически переведет все в одну валюту, чтобы вы видели общую картину.',
@@ -239,7 +260,17 @@ i18next.init({
         idea_security_title: '🔒 Ваши данные в безопасности',
         idea_security_text: 'Вся информация о ваших финансах шифруется перед сохранением. Ваши данные защищены и доступны только вам — никто другой их не увидит.',
         idea_share_title: '📤 Поделитесь с семьей',
-        idea_share_text: 'Нужно показать супругу или супруге текущее состояние бюджета? Экспортируйте данные в CSV файл и отправьте им. Это поможет всем быть в курсе финансовой ситуации семьи.'
+        idea_share_text: 'Нужно показать супругу или супруге текущее состояние бюджета? Экспортируйте данные в CSV файл и отправьте им. Это поможет всем быть в курсе финансовой ситуации семьи.',
+        settings_email_label: 'Email',
+        settings_email_placeholder: 'Ваш email адрес',
+        settings_email_helper: 'Этот email нельзя изменить',
+        settings_scenario_name_label: 'Название сценария',
+        settings_scenario_name_placeholder: 'Введите название сценария',
+        settings_currency_label: 'Валюта сценария',
+        settings_language_label: 'Язык интерфейса',
+        settings_language_placeholder: 'Выберите язык',
+        save: 'Сохранить',
+        saving: 'Сохранение...'
       }
     }
   }
@@ -252,9 +283,36 @@ export default {
   },
 }
 
+// Reactive language state for Vue components
+const currentLanguage = ref(i18next.language || 'en')
+
+// Listen to language changes from i18next
+i18next.on('languageChanged', (lng) => {
+  currentLanguage.value = lng
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('userLanguage', lng)
+  }
+})
+
 // Composition helper for components
 export const useTranslation = () => {
-  const t = i18next.t.bind(i18next) as TFunction
+  // Create a computed that returns a translation function
+  // This ensures all components using t() will reactively update when language changes
+  const tComputed = computed(() => {
+    // Access currentLanguage to establish reactivity dependency
+    void currentLanguage.value
+    // Return a function that calls i18next.t
+    return ((key: string, options?: any) => {
+      return i18next.t(key, options)
+    }) as TFunction
+  })
+
+  // Create a wrapper function that accesses the computed value
+  // This ensures reactivity is maintained when the function is called
+  const t = ((key: string, options?: any) => {
+    return tComputed.value(key, options)
+  }) as TFunction
+
   return { t }
 }
 
