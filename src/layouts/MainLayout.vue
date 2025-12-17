@@ -129,13 +129,17 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { RouterView } from 'vue-router'
+import { useQueryClient } from '@tanstack/vue-query'
 import { useTranslation } from '@/i18n'
+import { supabase } from '@/composables/useSupabase'
 import ScenarioSwitcher from '@/components/ScenarioSwitcher.vue'
 import ScenarioCreator from '@/components/ScenarioCreator.vue'
 
 const route = useRoute()
+const router = useRouter()
+const queryClient = useQueryClient()
 const { t } = useTranslation()
 
 const slug = computed(() => route.params.slug as string)
@@ -153,8 +157,25 @@ const formatCurrency = (amount: number) => {
   return `${amount.toFixed(2)} ${t('currency_symbol')}`
 }
 
-const handleSignOut = () => {
-  // TODO: Implement sign out logic
-  console.log('Sign out clicked')
+const handleSignOut = async () => {
+  try {
+    // Sign out from Supabase
+    const { error } = await supabase.auth.signOut()
+    
+    if (error) {
+      throw new Error(`Failed to sign out: ${error.message}`)
+    }
+
+    // Invalidate all user-related queries
+    queryClient.invalidateQueries({ queryKey: ['currentUser'] })
+    queryClient.invalidateQueries({ queryKey: ['userProfile'] })
+    queryClient.invalidateQueries({ queryKey: ['scenarios'] })
+    queryClient.invalidateQueries({ queryKey: ['scenario'] })
+
+    // Redirect to auth page
+    router.push('/auth')
+  } catch (error) {
+    console.error('Failed to sign out:', error)
+  }
 }
 </script>
