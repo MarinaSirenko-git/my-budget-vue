@@ -95,6 +95,8 @@ i18next.init({
         income_form_date_label: 'Payment Day',
         income_form_date_helper: 'Select the day of the month when you receive this income (e.g., 5th for salary on the 5th of each month)',
         income_form_submit: 'Add Income',
+        income_form_edit_title: 'Edit Income',
+        income_form_update: 'Update Income',
         expense_form_title: 'Add Expense',
         expense_form_category_label: 'Category',
         expense_form_amount_label: 'Amount',
@@ -142,7 +144,16 @@ i18next.init({
         settings_language_label: 'Interface Language',
         settings_language_placeholder: 'Select language',
         save: 'Save',
-        saving: 'Saving...'
+        saving: 'Saving...',
+        income_table_column_category: 'Category',
+        income_table_column_expected_amount: 'Expected Amount',
+        income_table_column_frequency: 'Payment Frequency',
+        income_table_column_payment_day: 'Payment Day',
+        income_table_column_actions: 'Actions',
+        income_table_column_base_currency: 'In base currency',
+        income_table_edit: 'Edit',
+        income_table_delete: 'Delete',
+        income_delete_confirm: 'Are you sure you want to delete "{{type}}" income? This action cannot be undone.',
       }
     },
     ru: {
@@ -223,6 +234,8 @@ i18next.init({
         income_form_date_label: 'День поступления платежа',
         income_form_date_helper: 'Выберите число месяца, когда вы получаете этот доход (например, 5-е для зарплаты, которая приходит 5-го числа каждого месяца)',
         income_form_submit: 'Добавить доход',
+        income_form_edit_title: 'Редактировать доход',
+        income_form_update: 'Обновить доход',
         expense_form_title: 'Добавить расход',
         expense_form_category_label: 'Категория',
         expense_form_amount_label: 'Сумма',
@@ -270,7 +283,16 @@ i18next.init({
         settings_language_label: 'Язык интерфейса',
         settings_language_placeholder: 'Выберите язык',
         save: 'Сохранить',
-        saving: 'Сохранение...'
+        saving: 'Сохранение...',
+        income_table_column_category: 'Категория',
+        income_table_column_expected_amount: 'Ожидаемая сумма',
+        income_table_column_frequency: 'Частота поступлений',
+        income_table_column_payment_day: 'День поступления',
+        income_table_column_actions: 'Действия',
+        income_table_column_base_currency: 'В базовой валюте',
+        income_table_edit: 'Редактировать',
+        income_table_delete: 'Удалить',
+        income_delete_confirm: 'Вы уверены, что хотите удалить доход "{{type}}"? Это действие нельзя отменить.',
       }
     }
   }

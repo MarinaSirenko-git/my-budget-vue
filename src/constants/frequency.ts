@@ -19,3 +19,10 @@ export const getFrequencyOptions = (locale: 'en' | 'ru' = 'ru'): FrequencyOption
     label: frequencyLabelsMap[value][locale],
   }))
 }
+
+/**
+ * Get frequency label by code and locale
+ */
+export const getFrequencyLabel = (code: FrequencyCode, locale: 'en' | 'ru' = 'ru'): string => {
+  return frequencyLabelsMap[code]?.[locale] || code
+}

@@ -4,6 +4,7 @@ import { supabase } from './useSupabase'
 import { currencyOptions, type CurrencyCode } from '@/constants/currency'
 import { type FrequencyCode, type FrequencyOption } from '@/constants/frequency'
 import { type IncomeType } from '@/constants/financialCategories'
+import type { Income } from './useIncomes'
 
 export interface IncomeFormData {
   categoryName: string
@@ -29,6 +30,7 @@ export const useIncomeForm = (
   const selectedCategory = ref<IncomeType | null>(null)
   const isSaving = ref(false)
   const saveError = ref<string | null>(null)
+  const editingIncomeId = ref<string | null>(null)
 
   // Form data
   const formData = ref<IncomeFormData>({
@@ -42,6 +44,7 @@ export const useIncomeForm = (
   // Reset form to initial state
   const resetForm = () => {
     selectedCategory.value = null
+    editingIncomeId.value = null
     formData.value = {
       categoryName: '',
       amount: null,
@@ -116,9 +119,24 @@ export const useIncomeForm = (
     showModal.value = false
   }
 
+  // Start editing an income
+  const startEdit = (income: Income) => {
+    editingIncomeId.value = income.id
+    formData.value = {
+      categoryName: income.type,
+      amount: income.amount,
+      currency: income.currency as CurrencyCode,
+      frequency: income.frequency as FrequencyCode,
+      paymentDay: income.payment_day,
+    }
+    // For edit mode, we don't need selectedCategory (it's only for new incomes)
+    selectedCategory.value = null
+    showModal.value = true
+  }
+
   // Handle form submission
   const handleSubmit = async () => {
-    if (!canSubmit.value || !selectedCategory.value) return
+    if (!canSubmit.value) return
 
     const currentScenarioId = toValue(scenarioId)
     if (!currentScenarioId) {
@@ -130,19 +148,36 @@ export const useIncomeForm = (
     saveError.value = null
 
     try {
-      const { error } = await supabase
-        .from('incomes')
-        .insert({
-          amount: formData.value.amount,
-          currency: formData.value.currency,
-          type: formData.value.categoryName.trim(),
-          frequency: formData.value.frequency || 'monthly',
-          payment_day: formData.value.paymentDay,
-          scenario_id: currentScenarioId,
-        })
+      const incomeData = {
+        amount: formData.value.amount,
+        currency: formData.value.currency,
+        type: formData.value.categoryName.trim(),
+        frequency: formData.value.frequency || 'monthly',
+        payment_day: formData.value.paymentDay,
+      }
 
-      if (error) {
-        throw error
+      if (editingIncomeId.value) {
+        // Update existing income
+        const { error } = await supabase
+          .from('incomes')
+          .update(incomeData)
+          .eq('id', editingIncomeId.value)
+
+        if (error) {
+          throw error
+        }
+      } else {
+        // Insert new income
+        const { error } = await supabase
+          .from('incomes')
+          .insert({
+            ...incomeData,
+            scenario_id: currentScenarioId,
+          })
+
+        if (error) {
+          throw error
+        }
       }
 
       // Invalidate incomes query to refresh the list
@@ -170,6 +205,7 @@ export const useIncomeForm = (
     isSaving,
     saveError,
     showModal,
+    editingIncomeId,
     // Computed
     canSubmit,
     // Methods
@@ -177,5 +213,6 @@ export const useIncomeForm = (
     handleCloseModal,
     handleSubmit,
     resetForm,
+    startEdit,
   }
 }
