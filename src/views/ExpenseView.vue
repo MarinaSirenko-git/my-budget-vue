@@ -1,7 +1,87 @@
 <template>
   <div class="p-6">
-    <!-- Empty State -->
+    <!-- Loading State -->
+    <div v-if="isDataLoading" class="flex items-center justify-center min-h-[60vh]">
+      <p>{{ t('loading') }}</p>
+    </div>
+
+    <!-- Expenses List (if expenses exist) -->
+    <div v-else-if="expenses && expenses.length > 0" class="max-w-6xl mx-auto">
+      <!-- Toolbar -->
+      <div class="flex justify-end items-center gap-4 mb-2">
+        <Button
+          variant="primary"
+          @click="showModal = true"
+        >
+          {{ t('expense_form_submit') }}
+        </Button>
+      </div>
+
+      <DataTable
+        :columns="tableColumns"
+        :data="expenses"
+        currency-column-key="base_currency"
+        :show-currency-dropdown="true"
+        :currency-options="currencyOptions"
+        v-model:display-base-currency="displayBaseCurrency"
+      >
+        <template #cell-limit="{ row }">
+          {{ formatCurrency(row.amount, row.currency) }}
+        </template>
+        <template #cell-base_currency="{ row }">
+          {{ formatBaseCurrency(row.amount, row.currency) }}
+        </template>
+        <template #cell-frequency="{ row }">
+          {{ formatFrequency(row.frequency) }}
+        </template>
+        <template #cell-actions="{ row }">
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="p-1 hover:bg-gray-100 rounded transition"
+              :aria-label="t('expense_table_edit')"
+              @click="handleEdit(row)"
+            >
+              <svg
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="p-1 hover:bg-gray-100 rounded transition"
+              :aria-label="t('expense_table_delete')"
+              @click="handleDelete(row)"
+            >
+              <svg
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+            </button>
+          </div>
+        </template>
+      </DataTable>
+    </div>
+
+    <!-- Empty State (only when loading is complete and no data) -->
     <EmptyState
+      v-else
       :emojis="['🐭', '💸']"
       :title="t('expense_empty_title')"
       :subtitle="t('expense_empty_subtitle')"
@@ -10,86 +90,18 @@
     />
 
     <!-- Add Expense Modal -->
-    <FormModal
+    <ExpenseFormModal
       v-model="showModal"
-      :title="t('expense_form_title')"
-    >
-      <template #body>
-        <div class="space-y-4">
-          <!-- Category -->
-          <div class="space-y-2">
-            <label class="block text-sm font-medium text-gray-700">
-              {{ t('expense_form_category_label') }}
-            </label>
-            <TextInput
-              v-model="formData.categoryName"
-              :placeholder="t('expense_form_category_label')"
-              :required="true"
-            />
-          </div>
-
-          <!-- Amount -->
-          <div class="space-y-2">
-            <label class="block text-sm font-medium text-gray-700">
-              {{ t('expense_form_amount_label') }}
-            </label>
-            <CurrencyInput
-              v-model="formData.amount"
-              :placeholder="t('expense_form_amount_label')"
-              :required="true"
-              :currency="formData.currency || undefined"
-              :locale="localeString"
-              :min="0.01"
-            />
-          </div>
-
-          <!-- Currency -->
-          <div class="space-y-2">
-            <label class="block text-sm font-medium text-gray-700">
-              {{ t('expense_form_currency_label') }}
-            </label>
-            <SelectInput
-              v-model="formData.currency"
-              :options="currencyOptions"
-              :placeholder="t('select_currency_placeholder')"
-              :searchable="true"
-            />
-          </div>
-
-          <!-- Frequency -->
-          <div class="space-y-2">
-            <label class="block text-sm font-medium text-gray-700">
-              {{ t('expense_form_frequency_label') }}
-            </label>
-            <SelectInput
-              v-model="formData.frequency"
-              :options="frequencyOptions"
-              :placeholder="t('expense_form_frequency_label')"
-            />
-          </div>
-        </div>
-      </template>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <button
-            type="button"
-            class="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
-            @click="handleCloseModal"
-          >
-            {{ t('cancel') }}
-          </button>
-          <button
-            type="button"
-            class="px-4 py-2 text-sm rounded-lg bg-black text-white hover:bg-gray-900 transition disabled:opacity-60 disabled:cursor-not-allowed"
-            :disabled="!canSubmit"
-            @click="handleSubmit"
-          >
-            {{ t('expense_form_submit') }}
-          </button>
-        </div>
-      </template>
-    </FormModal>
+      :form-data="formData"
+      :is-saving="isSaving"
+      :can-submit="canSubmit"
+      :is-editing="!!editingExpenseId"
+      :locale-string="localeString"
+      :currency-options="currencyOptions"
+      :frequency-options="frequencyOptions"
+      @close="handleCloseModal"
+      @submit="handleSubmit"
+    />
   </div>
 </template>
 
@@ -98,17 +110,40 @@ import { computed, ref, watch } from 'vue'
 import { useTranslation } from '@/i18n'
 import { getExpenseCategories, type ExpenseCategory } from '@/constants/financialCategories'
 import { currencyOptions, type CurrencyCode } from '@/constants/currency'
-import { getFrequencyOptions, type FrequencyCode } from '@/constants/frequency'
+import { getFrequencyOptions, getFrequencyLabel, type FrequencyCode } from '@/constants/frequency'
 import { useCurrentScenario } from '@/composables/useCurrentScenario'
+import { useExpenses, type Expense } from '@/composables/useExpenses'
+import { useExpenseForm } from '@/composables/useExpenseForm'
+import { useQueryClient } from '@tanstack/vue-query'
+import { supabase } from '@/composables/useSupabase'
 import i18next from 'i18next'
-import FormModal from '@/components/forms/FormModal.vue'
-import TextInput from '@/components/forms/TextInput.vue'
-import SelectInput from '@/components/forms/SelectInput.vue'
-import CurrencyInput from '@/components/forms/CurrencyInput.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import Button from '@/components/Button.vue'
+import DataTable, { type TableColumn } from '@/components/DataTable.vue'
+import ExpenseFormModal from '@/components/expenses/ExpenseFormModal.vue'
 
 const { t } = useTranslation()
-const { scenario } = useCurrentScenario()
+const { scenario, isLoading: isLoadingScenario } = useCurrentScenario()
+const queryClient = useQueryClient()
+
+// Use expenses composable - передаем computed для реактивности
+const scenarioId = computed(() => {
+  const id = scenario.value?.id
+  return id
+})
+const { expenses, isLoading: isLoadingExpenses, isFetching: isFetchingExpenses } = useExpenses(scenarioId)
+
+const isDataLoading = computed(() => {
+  const result = (() => {
+    if (isLoadingScenario.value) return true
+    if (scenario.value && expenses.value === undefined) return true
+    if (isLoadingExpenses.value || isFetchingExpenses.value) return true
+    
+    return false
+  })()
+  
+  return result
+})
 
 // Get current locale from i18next
 const currentLocale = computed<'en' | 'ru'>(() => {
@@ -138,86 +173,121 @@ const frequencyOptions = computed(() => {
   return getFrequencyOptions(currentLocale.value)
 })
 
-// Modal state
-const showModal = ref(false)
-const selectedCategory = ref<ExpenseCategory | null>(null)
+// Use expense form composable
+const {
+  formData,
+  isSaving,
+  showModal,
+  canSubmit,
+  editingExpenseId,
+  handleOptionClick,
+  handleCloseModal,
+  handleSubmit,
+  startEdit,
+} = useExpenseForm(scenarioId, scenario, frequencyOptions)
 
-// Form data
-const formData = ref({
-  categoryName: '',
-  amount: null as number | null,
-  currency: null as CurrencyCode | null,
-  frequency: null as FrequencyCode | null,
-})
+// Table columns configuration
+const tableColumns = computed<TableColumn[]>(() => [
+  {
+    key: 'type',
+    label: t('expense_table_column_category'),
+  },
+  {
+    key: 'limit',
+    label: t('expense_table_column_limit'),
+  },
+  {
+    key: 'base_currency',
+    label: t('expense_table_column_base_currency'),
+  },
+  {
+    key: 'frequency',
+    label: t('expense_table_column_frequency'),
+  },
+  {
+    key: 'actions',
+    label: t('expense_table_column_actions'),
+  },
+])
 
-// Reset form when modal closes
-watch(showModal, (isOpen) => {
-  if (!isOpen) {
-    selectedCategory.value = null
-    formData.value = {
-      categoryName: '',
-      amount: null,
-      currency: null,
-      frequency: null,
-    }
-  } else {
-    // Set default currency from scenario when modal opens, if not already set
-    if (!formData.value.currency && scenario.value?.base_currency) {
-      const scenarioCurrency = scenario.value.base_currency as CurrencyCode
-      if (currencyOptions.some(opt => opt.value === scenarioCurrency)) {
-        formData.value.currency = scenarioCurrency
-      }
-    }
-  }
-})
+// Display base currency state
+const displayBaseCurrency = ref<CurrencyCode | null>(null)
 
-const canSubmit = computed(() => {
-  return (
-    formData.value.categoryName.trim() !== '' &&
-    formData.value.amount !== null &&
-    formData.value.amount > 0 &&
-    formData.value.currency !== null &&
-    formData.value.frequency !== null
-  )
-})
+// Initialize display base currency from scenario
+watch(() => scenario.value?.base_currency, (newCurrency) => {
+  if (newCurrency && !displayBaseCurrency.value) {
+    displayBaseCurrency.value = newCurrency as CurrencyCode
+  }
+}, { immediate: true })
 
-const handleOptionClick = (option: ExpenseCategory) => {
-  selectedCategory.value = option
-  // Set category name from selected option, but leave empty if it's custom
-  if (option.isCustom) {
-    formData.value.categoryName = ''
-  } else {
-    formData.value.categoryName = option.label
+// Format currency using Intl.NumberFormat
+const formatCurrency = (amount: number, currency: string) => {
+  try {
+    return new Intl.NumberFormat(localeString.value, {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount)
+  } catch (error) {
+    // Fallback if currency or locale is invalid
+    return `${amount.toFixed(2)} ${currency}`
   }
-  // Set default currency from scenario base_currency, or first option if available
-  if (!formData.value.currency) {
-    const scenarioCurrency = scenario.value?.base_currency as CurrencyCode | null | undefined
-    if (scenarioCurrency && currencyOptions.some(opt => opt.value === scenarioCurrency)) {
-      formData.value.currency = scenarioCurrency
-    } else if (currencyOptions.length > 0) {
-      formData.value.currency = currencyOptions[0].value
-    }
-  }
-  // Set default frequency to monthly if available
-  if (frequencyOptions.value.length > 0 && !formData.value.frequency) {
-    formData.value.frequency = 'monthly'
-  }
-  showModal.value = true
 }
 
-const handleCloseModal = () => {
-  showModal.value = false
+// Format frequency label
+const formatFrequency = (frequency: string) => {
+  return getFrequencyLabel(frequency as FrequencyCode, currentLocale.value)
 }
 
-const handleSubmit = () => {
-  if (!canSubmit.value || !selectedCategory.value) return
+// Format amount in base currency
+const formatBaseCurrency = (amount: number, expenseCurrency: string) => {
+  const targetCurrency = displayBaseCurrency.value
+  if (!targetCurrency) {
+    return '—'
+  }
+  
+  // If expense currency matches target currency, show the same amount
+  if (expenseCurrency === targetCurrency) {
+    return formatCurrency(amount, targetCurrency)
+  }
+  
+  // TODO: Implement currency conversion when API is available
+  // For now, show dash if currencies don't match
+  return '—'
+}
 
-  // TODO: Implement saving expense when functionality is ready
-  console.log('Submitting expense:', {
-    category: selectedCategory.value,
-    ...formData.value,
-  })
+// Handle edit expense
+const handleEdit = (expense: Expense) => {
+  startEdit(expense)
+}
 
-  handleCloseModal()
+// Handle delete expense
+const handleDelete = async (expense: Expense) => {
+  const confirmMessage = t('expense_delete_confirm', { type: expense.type })
+  const confirmed = window.confirm(confirmMessage)
+  
+  if (!confirmed) {
+    return
+  }
+
+  try {
+    const { error } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', expense.id)
+
+    if (error) {
+      throw error
+    }
+
+    // Invalidate expenses query to refresh the list
+    queryClient.invalidateQueries({ queryKey: ['expenses'] })
+  } catch (error) {
+    console.error('Failed to delete expense:', error)
+    // Show error message to user
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete expense'
+    window.alert(errorMessage)
+  }
 }
 </script>

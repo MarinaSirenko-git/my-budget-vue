@@ -1,18 +1,18 @@
 <template>
   <FormModal
     v-model="showModal"
-    :title="isEditing ? t('income_form_edit_title') : t('income_form_title')"
+    :title="isEditing ? t('expense_form_edit_title') : t('expense_form_title')"
   >
     <template #body>
       <div class="space-y-4">
         <!-- Category -->
         <div class="space-y-2">
           <label class="block text-sm font-medium text-gray-700">
-            {{ t('income_form_category_label') }}
+            {{ t('expense_form_category_label') }}
           </label>
           <TextInput
             v-model="formData.categoryName"
-            :placeholder="t('income_form_category_label')"
+            :placeholder="t('expense_form_category_label')"
             :required="true"
           />
         </div>
@@ -20,11 +20,11 @@
         <!-- Amount -->
         <div class="space-y-2">
           <label class="block text-sm font-medium text-gray-700">
-            {{ t('income_form_amount_label') }}
+            {{ t('expense_form_amount_label') }}
           </label>
           <CurrencyInput
             v-model="formData.amount"
-            :placeholder="t('income_form_amount_label')"
+            :placeholder="t('expense_form_amount_label')"
             :required="true"
             :currency="formData.currency || undefined"
             :locale="localeString"
@@ -35,7 +35,7 @@
         <!-- Currency -->
         <div class="space-y-2">
           <label class="block text-sm font-medium text-gray-700">
-            {{ t('income_form_currency_label') }}
+            {{ t('expense_form_currency_label') }}
           </label>
           <SelectInput
             v-model="formData.currency"
@@ -48,26 +48,12 @@
         <!-- Frequency -->
         <div class="space-y-2">
           <label class="block text-sm font-medium text-gray-700">
-            {{ t('income_form_frequency_label') }}
+            {{ t('expense_form_frequency_label') }}
           </label>
           <SelectInput
             v-model="formData.frequency"
             :options="frequencyOptions"
-            :placeholder="t('income_form_frequency_label')"
-          />
-        </div>
-
-        <!-- Payment Day -->
-        <div class="space-y-2">
-          <label class="block text-sm font-medium text-gray-700">
-            {{ t('income_form_date_label') }}
-          </label>
-          <SelectInput
-            v-model="formData.paymentDay"
-            :options="dayOptions"
-            :placeholder="t('income_form_date_label')"
-            :helper-text="t('income_form_date_helper')"
-            :required="true"
+            :placeholder="t('expense_form_frequency_label')"
           />
         </div>
       </div>
@@ -88,7 +74,7 @@
           :disabled="!canSubmit || isSaving"
           @click="handleSubmit"
         >
-          {{ isSaving ? t('saving') : (isEditing ? t('income_form_update') : t('income_form_submit')) }}
+          {{ isSaving ? t('saving') : (isEditing ? t('expense_form_update') : t('expense_form_submit')) }}
         </button>
       </div>
     </template>
@@ -98,7 +84,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useTranslation } from '@/i18n'
-import { type IncomeFormData } from '@/composables/useIncomeForm'
+import { type ExpenseFormData } from '@/composables/useExpenseForm'
 import { type CurrencyCode } from '@/constants/currency'
 import { type FrequencyOption } from '@/constants/frequency'
 import FormModal from '@/components/forms/FormModal.vue'
@@ -108,14 +94,13 @@ import CurrencyInput from '@/components/forms/CurrencyInput.vue'
 
 interface Props {
   modelValue: boolean
-  formData: IncomeFormData
+  formData: ExpenseFormData
   isSaving: boolean
   canSubmit: boolean
   isEditing?: boolean
   localeString: string
   currencyOptions: Array<{ label: string; value: CurrencyCode }>
   frequencyOptions: FrequencyOption[]
-  dayOptions: Array<{ label: string; value: string }>
 }
 
 const props = defineProps<Props>()
@@ -142,4 +127,3 @@ const handleSubmit = () => {
   emit('submit')
 }
 </script>
-

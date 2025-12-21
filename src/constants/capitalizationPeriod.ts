@@ -22,3 +22,4 @@ export const getCapitalizationPeriodOptions = (locale: 'en' | 'ru' = 'ru'): Capi
 }
 
 
+
