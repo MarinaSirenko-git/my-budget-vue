@@ -29,7 +29,7 @@
           {{ formatCurrency(row.amount, row.currency) }}
         </template>
         <template #cell-base_currency="{ row }">
-          {{ formatBaseCurrency(row.amount, row.currency) }}
+          {{ formatBaseCurrency(row) }}
         </template>
         <template #cell-frequency="{ row }">
           {{ formatFrequency(row.frequency) }}
@@ -115,8 +115,10 @@ import { getFrequencyOptions, getFrequencyLabel, type FrequencyCode } from '@/co
 import { useCurrentScenario } from '@/composables/useCurrentScenario'
 import { useIncomes, type Income } from '@/composables/useIncomes'
 import { useIncomeForm } from '@/composables/useIncomeForm'
-import { useQueryClient } from '@tanstack/vue-query'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from '@/composables/useSupabase'
+import { useCurrentUser } from '@/composables/useCurrentUser'
+import { queryKeys } from '@/lib/queryKeys'
 import i18next from 'i18next'
 import EmptyState from '@/components/EmptyState.vue'
 import IncomeFormModal from '@/components/incomes/IncomeFormModal.vue'
@@ -125,6 +127,7 @@ import DataTable, { type TableColumn } from '@/components/DataTable.vue'
 
 const { t } = useTranslation()
 const { scenario, isLoading: isLoadingScenario } = useCurrentScenario()
+const { userId } = useCurrentUser()
 const queryClient = useQueryClient()
 
 // Use incomes composable - передаем computed для реактивности
@@ -132,8 +135,7 @@ const scenarioId = computed(() => {
   const id = scenario.value?.id
   return id
 })
-const { incomes, isLoading: isLoadingIncomes, isFetching: isFetchingIncomes } = useIncomes(scenarioId)
-
+const { incomes, isLoading: isLoadingIncomes, isFetching: isFetchingIncomes, convertedAmounts } = useIncomes(scenarioId)
 const isDataLoading = computed(() => {
   const result = (() => {
 
@@ -258,19 +260,24 @@ const formatFrequency = (frequency: string) => {
 }
 
 // Format amount in base currency
-const formatBaseCurrency = (amount: number, incomeCurrency: string) => {
+const formatBaseCurrency = (income: Income) => {
   const targetCurrency = displayBaseCurrency.value
   if (!targetCurrency) {
     return '—'
   }
   
   // If income currency matches target currency, show the same amount
-  if (incomeCurrency === targetCurrency) {
-    return formatCurrency(amount, targetCurrency)
+  if (income.currency === targetCurrency) {
+    return formatCurrency(income.amount, targetCurrency)
   }
   
-  // TODO: Implement currency conversion when API is available
-  // For now, show dash if currencies don't match
+  // Use converted amount from bulk conversion
+  const convertedAmount = convertedAmounts.value?.[income.id]
+  if (convertedAmount !== undefined && convertedAmount !== null) {
+    return formatCurrency(convertedAmount, targetCurrency)
+  }
+  
+  // If conversion not available yet, show dash
   return '—'
 }
 
@@ -278,6 +285,68 @@ const formatBaseCurrency = (amount: number, incomeCurrency: string) => {
 const handleEdit = (income: Income) => {
   startEdit(income)
 }
+
+// Mutation for deleting incomes
+const deleteIncomeMutation = useMutation({
+  mutationFn: async (incomeId: string) => {
+    const { error } = await supabase
+      .from('incomes')
+      .delete()
+      .eq('id', incomeId)
+
+    if (error) {
+      throw error
+    }
+    return incomeId
+  },
+  onMutate: async (incomeId) => {
+    const currentUserId = userId.value
+    const currentScenarioId = scenario.value?.id
+    if (!currentUserId || !currentScenarioId) return
+
+    const queryKey = queryKeys.incomes.list(currentUserId, currentScenarioId)
+    
+    // Cancel any outgoing refetches
+    await queryClient.cancelQueries({ queryKey })
+
+    // Snapshot the previous value
+    const previousIncomes = queryClient.getQueryData<Income[]>(queryKey)
+
+    // Optimistically remove the income
+    queryClient.setQueryData<Income[]>(queryKey, (old) => {
+      if (!old) return old
+      return old.filter((income) => income.id !== incomeId)
+    })
+
+    return { previousIncomes }
+  },
+  onError: (error, _incomeId, context) => {
+    const currentUserId = userId.value
+    const currentScenarioId = scenario.value?.id
+    if (!currentUserId || !currentScenarioId || !context?.previousIncomes) return
+
+    // Rollback to previous value on error
+    const queryKey = queryKeys.incomes.list(currentUserId, currentScenarioId)
+    queryClient.setQueryData(queryKey, context.previousIncomes)
+    
+    console.error('Failed to delete income:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete income'
+    window.alert(errorMessage)
+  },
+  onSuccess: () => {
+    const currentUserId = userId.value
+    const currentScenarioId = scenario.value?.id
+    if (!currentUserId || !currentScenarioId) return
+
+    // Invalidate and refetch related queries for immediate update
+    queryClient.invalidateQueries({ queryKey: queryKeys.incomes.all })
+    // Refetch converted amounts immediately to update the UI
+    queryClient.refetchQueries({ 
+      queryKey: queryKeys.incomes.converted(currentUserId, currentScenarioId, null),
+      type: 'active'
+    })
+  },
+})
 
 // Handle delete income
 const handleDelete = async (income: Income) => {
@@ -288,24 +357,7 @@ const handleDelete = async (income: Income) => {
     return
   }
 
-  try {
-    const { error } = await supabase
-      .from('incomes')
-      .delete()
-      .eq('id', income.id)
-
-    if (error) {
-      throw error
-    }
-
-    // Invalidate incomes query to refresh the list
-    queryClient.invalidateQueries({ queryKey: ['incomes'] })
-  } catch (error) {
-    console.error('Failed to delete income:', error)
-    // Show error message to user
-    const errorMessage = error instanceof Error ? error.message : 'Failed to delete income'
-    window.alert(errorMessage)
-  }
+  deleteIncomeMutation.mutate(income.id)
 }
 </script>
 

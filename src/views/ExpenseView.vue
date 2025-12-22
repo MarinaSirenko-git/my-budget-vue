@@ -114,8 +114,10 @@ import { getFrequencyOptions, getFrequencyLabel, type FrequencyCode } from '@/co
 import { useCurrentScenario } from '@/composables/useCurrentScenario'
 import { useExpenses, type Expense } from '@/composables/useExpenses'
 import { useExpenseForm } from '@/composables/useExpenseForm'
-import { useQueryClient } from '@tanstack/vue-query'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from '@/composables/useSupabase'
+import { useCurrentUser } from '@/composables/useCurrentUser'
+import { queryKeys } from '@/lib/queryKeys'
 import i18next from 'i18next'
 import EmptyState from '@/components/EmptyState.vue'
 import Button from '@/components/Button.vue'
@@ -124,6 +126,7 @@ import ExpenseFormModal from '@/components/expenses/ExpenseFormModal.vue'
 
 const { t } = useTranslation()
 const { scenario, isLoading: isLoadingScenario } = useCurrentScenario()
+const { userId } = useCurrentUser()
 const queryClient = useQueryClient()
 
 // Use expenses composable - передаем computed для реактивности
@@ -262,6 +265,68 @@ const handleEdit = (expense: Expense) => {
   startEdit(expense)
 }
 
+// Mutation for deleting expenses
+const deleteExpenseMutation = useMutation({
+  mutationFn: async (expenseId: string) => {
+    const { error } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', expenseId)
+
+    if (error) {
+      throw error
+    }
+    return expenseId
+  },
+  onMutate: async (expenseId) => {
+    const currentUserId = userId.value
+    const currentScenarioId = scenario.value?.id
+    if (!currentUserId || !currentScenarioId) return
+
+    const queryKey = queryKeys.expenses.list(currentUserId, currentScenarioId)
+    
+    // Cancel any outgoing refetches
+    await queryClient.cancelQueries({ queryKey })
+
+    // Snapshot the previous value
+    const previousExpenses = queryClient.getQueryData<Expense[]>(queryKey)
+
+    // Optimistically remove the expense
+    queryClient.setQueryData<Expense[]>(queryKey, (old) => {
+      if (!old) return old
+      return old.filter((expense) => expense.id !== expenseId)
+    })
+
+    return { previousExpenses }
+  },
+  onError: (error, _expenseId, context) => {
+    const currentUserId = userId.value
+    const currentScenarioId = scenario.value?.id
+    if (!currentUserId || !currentScenarioId || !context?.previousExpenses) return
+
+    // Rollback to previous value on error
+    const queryKey = queryKeys.expenses.list(currentUserId, currentScenarioId)
+    queryClient.setQueryData(queryKey, context.previousExpenses)
+    
+    console.error('Failed to delete expense:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete expense'
+    window.alert(errorMessage)
+  },
+  onSuccess: () => {
+    const currentUserId = userId.value
+    const currentScenarioId = scenario.value?.id
+    if (!currentUserId || !currentScenarioId) return
+
+    // Invalidate and refetch related queries for immediate update
+    queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
+    // Refetch converted amounts immediately to update the UI
+    queryClient.refetchQueries({ 
+      queryKey: queryKeys.expenses.converted(currentUserId, currentScenarioId, null),
+      type: 'active'
+    })
+  },
+})
+
 // Handle delete expense
 const handleDelete = async (expense: Expense) => {
   const confirmMessage = t('expense_delete_confirm', { type: expense.type })
@@ -271,23 +336,6 @@ const handleDelete = async (expense: Expense) => {
     return
   }
 
-  try {
-    const { error } = await supabase
-      .from('expenses')
-      .delete()
-      .eq('id', expense.id)
-
-    if (error) {
-      throw error
-    }
-
-    // Invalidate expenses query to refresh the list
-    queryClient.invalidateQueries({ queryKey: ['expenses'] })
-  } catch (error) {
-    console.error('Failed to delete expense:', error)
-    // Show error message to user
-    const errorMessage = error instanceof Error ? error.message : 'Failed to delete expense'
-    window.alert(errorMessage)
-  }
+  deleteExpenseMutation.mutate(expense.id)
 }
 </script>

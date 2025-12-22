@@ -1,10 +1,12 @@
 import { computed, ref, watch, type MaybeRefOrGetter, toValue } from 'vue'
-import { useQueryClient } from '@tanstack/vue-query'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from './useSupabase'
 import { currencyOptions, type CurrencyCode } from '@/constants/currency'
 import { type FrequencyCode, type FrequencyOption } from '@/constants/frequency'
 import { type IncomeType } from '@/constants/financialCategories'
 import type { Income } from './useIncomes'
+import { useCurrentUser } from './useCurrentUser'
+import { queryKeys } from '@/lib/queryKeys'
 
 export interface IncomeFormData {
   categoryName: string
@@ -24,12 +26,11 @@ export const useIncomeForm = (
   onSuccess?: () => void
 ) => {
   const queryClient = useQueryClient()
+  const { userId } = useCurrentUser()
 
   // Modal state
   const showModal = ref(false)
   const selectedCategory = ref<IncomeType | null>(null)
-  const isSaving = ref(false)
-  const saveError = ref<string | null>(null)
   const editingIncomeId = ref<string | null>(null)
 
   // Form data
@@ -52,7 +53,6 @@ export const useIncomeForm = (
       frequency: null,
       paymentDay: null,
     }
-    saveError.value = null
   }
 
   // Set default currency from scenario
@@ -134,54 +134,129 @@ export const useIncomeForm = (
     showModal.value = true
   }
 
-  // Handle form submission
-  const handleSubmit = async () => {
-    if (!canSubmit.value) return
-
-    const currentScenarioId = toValue(scenarioId)
-    if (!currentScenarioId) {
-      saveError.value = 'Scenario ID is required'
-      return
-    }
-
-    isSaving.value = true
-    saveError.value = null
-
-    try {
-      const incomeData = {
-        amount: formData.value.amount,
-        currency: formData.value.currency,
-        type: formData.value.categoryName.trim(),
-        frequency: formData.value.frequency || 'monthly',
-        payment_day: formData.value.paymentDay,
+  // Mutation for creating/updating incomes
+  const incomeMutation = useMutation({
+    mutationFn: async (variables: { incomeData: any; incomeId?: string | null }) => {
+      const currentScenarioId = toValue(scenarioId)
+      if (!currentScenarioId) {
+        throw new Error('Scenario ID is required')
       }
 
-      if (editingIncomeId.value) {
+      if (variables.incomeId) {
         // Update existing income
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('incomes')
-          .update(incomeData)
-          .eq('id', editingIncomeId.value)
+          .update(variables.incomeData)
+          .eq('id', variables.incomeId)
+          .select()
+          .single()
 
         if (error) {
           throw error
         }
+        return data
       } else {
         // Insert new income
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('incomes')
           .insert({
-            ...incomeData,
+            ...variables.incomeData,
             scenario_id: currentScenarioId,
           })
+          .select()
+          .single()
 
         if (error) {
           throw error
         }
+        return data
+      }
+    },
+    onMutate: async (variables) => {
+      const currentUserId = userId.value
+      const currentScenarioId = toValue(scenarioId)
+      if (!currentUserId || !currentScenarioId) return
+
+      const queryKey = queryKeys.incomes.list(currentUserId, currentScenarioId)
+      
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey })
+
+      // Snapshot the previous value
+      const previousIncomes = queryClient.getQueryData<Income[]>(queryKey)
+
+      // Optimistically update to the new value
+      if (variables.incomeId) {
+        // Update existing income
+        queryClient.setQueryData<Income[]>(queryKey, (old) => {
+          if (!old) return old
+          return old.map((income) =>
+            income.id === variables.incomeId
+              ? { ...income, ...variables.incomeData }
+              : income
+          )
+        })
+      } else {
+        // Add new income optimistically
+        const optimisticIncome: Income = {
+          id: `temp-${Date.now()}`,
+          created_at: new Date().toISOString(),
+          user_id: currentUserId,
+          scenario_id: currentScenarioId,
+          ...variables.incomeData,
+        }
+        queryClient.setQueryData<Income[]>(queryKey, (old) => {
+          return old ? [optimisticIncome, ...old] : [optimisticIncome]
+        })
       }
 
-      // Invalidate incomes query to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['incomes'] })
+      return { previousIncomes }
+    },
+    onError: (error, _variables, context) => {
+      const currentUserId = userId.value
+      const currentScenarioId = toValue(scenarioId)
+      if (!currentUserId || !currentScenarioId || !context?.previousIncomes) return
+
+      // Rollback to previous value on error
+      const queryKey = queryKeys.incomes.list(currentUserId, currentScenarioId)
+      queryClient.setQueryData(queryKey, context.previousIncomes)
+      
+      console.error('Failed to save income:', error)
+    },
+    onSuccess: (data, variables) => {
+      const currentUserId = userId.value
+      const currentScenarioId = toValue(scenarioId)
+      if (!currentUserId || !currentScenarioId) return
+
+      const queryKey = queryKeys.incomes.list(currentUserId, currentScenarioId)
+      
+      // Update with real data from server
+      queryClient.setQueryData<Income[]>(queryKey, (old) => {
+        if (!old) return [data]
+        
+        if (variables.incomeId) {
+          // Update existing income
+          return old.map((income) => (income.id === data.id ? data : income))
+        } else {
+          // Replace first optimistic income (temp ID) with real one
+          const tempIndex = old.findIndex((e) => e.id.startsWith('temp-'))
+          if (tempIndex !== -1) {
+            const newList = [...old]
+            newList[tempIndex] = data
+            return newList
+          }
+          // If no temp found, just add the new one
+          return [data, ...old]
+        }
+      })
+
+      // Invalidate and refetch related queries for immediate update
+      queryClient.invalidateQueries({ queryKey: queryKeys.incomes.all })
+      // Refetch converted amounts immediately to update the UI
+      queryClient.refetchQueries({ 
+        queryKey: queryKeys.incomes.converted(currentUserId, currentScenarioId, null),
+        type: 'active'
+      })
 
       handleCloseModal()
 
@@ -189,14 +264,37 @@ export const useIncomeForm = (
       if (onSuccess) {
         onSuccess()
       }
-    } catch (error) {
-      console.error('Failed to save income:', error)
-      saveError.value = error instanceof Error ? error.message : 'Failed to save income'
-      // TODO: Show error message to user (e.g., using a toast notification)
-    } finally {
-      isSaving.value = false
+    },
+  })
+
+  // Handle form submission
+  const handleSubmit = async () => {
+    if (!canSubmit.value) return
+
+    const currentScenarioId = toValue(scenarioId)
+    if (!currentScenarioId) {
+      return
     }
+
+    const incomeData = {
+      amount: formData.value.amount!,
+      currency: formData.value.currency!,
+      type: formData.value.categoryName.trim(),
+      frequency: formData.value.frequency || 'monthly',
+      payment_day: formData.value.paymentDay!,
+    }
+
+    incomeMutation.mutate({
+      incomeData,
+      incomeId: editingIncomeId.value,
+    })
   }
+
+  const isSaving = computed(() => incomeMutation.isPending.value)
+  const saveError = computed(() => {
+    const error = incomeMutation.error.value
+    return error instanceof Error ? error.message : error ? 'Failed to save income' : null
+  })
 
   return {
     // State

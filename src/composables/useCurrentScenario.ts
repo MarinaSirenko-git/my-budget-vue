@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { supabase } from './useSupabase'
 import { useCurrentUser } from './useCurrentUser'
+import { queryKeys } from '@/lib/queryKeys'
 
 export interface Scenario {
   id: string
@@ -19,7 +20,7 @@ export const useCurrentScenario = () => {
   const { userId } = useCurrentUser()
 
   // Query for all user scenarios
-  const scenariosQueryKey = computed(() => ['scenarios', userId.value])
+  const scenariosQueryKey = computed(() => queryKeys.scenarios.list(userId.value))
   const scenariosEnabled = computed(() => !!userId.value)
 
   const {
@@ -50,7 +51,7 @@ export const useCurrentScenario = () => {
   })
 
   // Query for current scenario
-  const queryKey = computed(() => ['scenario', slug.value, userId.value])
+  const queryKey = computed(() => queryKeys.scenarios.detail(slug.value, userId.value))
   const enabled = computed(() => !!slug.value && !!userId.value)
 
   const {

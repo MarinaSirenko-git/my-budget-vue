@@ -1,7 +1,11 @@
-import { computed, watch, type MaybeRefOrGetter, toValue } from 'vue'
+import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from './useSupabase'
 import { useCurrentUser } from './useCurrentUser'
+import { useCurrentScenario } from './useCurrentScenario'
+import { useAmounts } from './useAmounts'
+import type { CurrencyCode } from '@/constants/currency'
+import { queryKeys } from '@/lib/queryKeys'
 
 export interface Income {
   id: string
@@ -22,9 +26,11 @@ export interface Income {
 export const useIncomes = (scenarioId: MaybeRefOrGetter<string | null | undefined>) => {
   const { userId } = useCurrentUser()
   const queryClient = useQueryClient()
+  const { scenario } = useCurrentScenario()
+  const { convertAmountsBulk } = useAmounts()
 
   const queryKey = computed(() => {
-    return ['incomes', userId.value, toValue(scenarioId)]
+    return queryKeys.incomes.list(userId.value, toValue(scenarioId) ?? null)
   })
   const enabled = computed(() => {
     return !!userId.value && !!toValue(scenarioId)
@@ -36,7 +42,7 @@ export const useIncomes = (scenarioId: MaybeRefOrGetter<string | null | undefine
     if (!currentUserId || !currentScenarioId) {
       return undefined
     }
-    return queryClient.getQueryData<Income[]>(['incomes', currentUserId, currentScenarioId])
+    return queryClient.getQueryData<Income[]>(queryKeys.incomes.list(currentUserId, currentScenarioId))
   }
 
   const {
@@ -70,14 +76,10 @@ export const useIncomes = (scenarioId: MaybeRefOrGetter<string | null | undefine
     },
     enabled,
     initialData: getInitialData, // Use data from cache if available
-    // Не используем placeholderData - пусть incomes будет undefined пока данные не загружены
-    // Это позволит правильно определить состояние загрузки
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
   })
 
-  // Проверяем, что данные были загружены хотя бы раз
-  // dataUpdatedAt будет 0 если данные еще не загружались
   const isDataLoaded = computed(() => {
     return enabled.value && dataUpdatedAt.value > 0
   })
@@ -89,6 +91,89 @@ export const useIncomes = (scenarioId: MaybeRefOrGetter<string | null | undefine
     return incomes.value.reduce((sum, income) => sum + (income.amount || 0), 0)
   })
 
+  // Query for converted amounts in base currency
+  const baseCurrency = computed(() => {
+    return (scenario.value?.base_currency as CurrencyCode | null) ?? null
+  })
+
+  const convertedAmountsQueryKey = computed(() => {
+    // Include incomes length to trigger recalculation when incomes change
+    return [
+      ...queryKeys.incomes.converted(userId.value, toValue(scenarioId) ?? null, baseCurrency.value ?? null),
+      incomes.value?.length ?? 0,
+    ]
+  })
+
+  const convertedAmountsEnabled = computed(() => {
+    return (
+      !!userId.value &&
+      !!toValue(scenarioId) &&
+      !!baseCurrency.value &&
+      !!incomes.value &&
+      incomes.value.length > 0
+    )
+  })
+
+  const {
+    data: convertedAmounts,
+    isLoading: isLoadingConverted,
+    isFetching: isFetchingConverted,
+  } = useQuery<Record<string, number>>({
+    queryKey: convertedAmountsQueryKey,
+    queryFn: async () => {
+      const currentIncomes = incomes.value
+      const currentBaseCurrency = baseCurrency.value
+
+      if (!currentIncomes || !currentBaseCurrency) {
+        return {}
+      }
+
+      // Filter incomes that need conversion (currency differs from base currency)
+      // Also validate that amount is a number and currency is a string
+      const incomesToConvert = currentIncomes.filter(
+        (income) =>
+          income.currency !== currentBaseCurrency &&
+          typeof income.amount === 'number' &&
+          income.amount != null &&
+          typeof income.currency === 'string' &&
+          income.currency != null
+      )
+
+      // If no incomes need conversion, return empty map
+      if (incomesToConvert.length === 0) {
+        return {}
+      }
+
+      // Prepare items for bulk conversion with validated data
+      const items = incomesToConvert.map((income) => ({
+        amount: income.amount as number,
+        currency: income.currency as string,
+      }))
+
+      // Call bulk conversion
+      const convertedData = await convertAmountsBulk(items, currentBaseCurrency)
+
+      if (!convertedData || !Array.isArray(convertedData)) {
+        console.warn('[useIncomes] No converted data returned from convertAmountsBulk')
+        return {}
+      }
+
+      // Create map: income id -> converted amount (rounded to integer)
+      const convertedMap: Record<string, number> = {}
+      incomesToConvert.forEach((income, index) => {
+        const convertedItem = convertedData[index]
+        if (convertedItem && typeof convertedItem === 'object' && 'converted_amount' in convertedItem) {
+          const convertedAmount = convertedItem.converted_amount as number
+          convertedMap[income.id] = Math.round(convertedAmount)
+        }
+      })
+
+      return convertedMap
+    },
+    enabled: convertedAmountsEnabled,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  })
 
   return {
     incomes,
@@ -98,5 +183,8 @@ export const useIncomes = (scenarioId: MaybeRefOrGetter<string | null | undefine
     error,
     totalAmount,
     isDataLoaded,
+    convertedAmounts,
+    isLoadingConverted,
+    isFetchingConverted,
   }
 }

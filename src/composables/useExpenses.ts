@@ -1,7 +1,11 @@
-import { computed, watch, type MaybeRefOrGetter, toValue } from 'vue'
+import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from './useSupabase'
 import { useCurrentUser } from './useCurrentUser'
+import { useCurrentScenario } from './useCurrentScenario'
+import { useAmounts } from './useAmounts'
+import type { CurrencyCode } from '@/constants/currency'
+import { queryKeys } from '@/lib/queryKeys'
 
 export interface Expense {
   id: string
@@ -21,9 +25,11 @@ export interface Expense {
 export const useExpenses = (scenarioId: MaybeRefOrGetter<string | null | undefined>) => {
   const { userId } = useCurrentUser()
   const queryClient = useQueryClient()
+  const { scenario } = useCurrentScenario()
+  const { convertAmountsBulk } = useAmounts()
 
   const queryKey = computed(() => {
-    return ['expenses', userId.value, toValue(scenarioId)]
+    return queryKeys.expenses.list(userId.value, toValue(scenarioId) ?? null)
   })
   const enabled = computed(() => {
     return !!userId.value && !!toValue(scenarioId)
@@ -35,7 +41,7 @@ export const useExpenses = (scenarioId: MaybeRefOrGetter<string | null | undefin
     if (!currentUserId || !currentScenarioId) {
       return undefined
     }
-    return queryClient.getQueryData<Expense[]>(['expenses', currentUserId, currentScenarioId])
+    return queryClient.getQueryData<Expense[]>(queryKeys.expenses.list(currentUserId, currentScenarioId))
   }
 
   const {
@@ -88,6 +94,89 @@ export const useExpenses = (scenarioId: MaybeRefOrGetter<string | null | undefin
     return expenses.value.reduce((sum, expense) => sum + (expense.amount || 0), 0)
   })
 
+  // Query for converted amounts in base currency
+  const baseCurrency = computed(() => {
+    return (scenario.value?.base_currency as CurrencyCode | null) ?? null
+  })
+
+  const convertedAmountsQueryKey = computed(() => {
+    // Include expenses length to trigger recalculation when expenses change
+    return [
+      ...queryKeys.expenses.converted(userId.value, toValue(scenarioId) ?? null, baseCurrency.value ?? null),
+      expenses.value?.length ?? 0,
+    ]
+  })
+
+  const convertedAmountsEnabled = computed(() => {
+    return (
+      !!userId.value &&
+      !!toValue(scenarioId) &&
+      !!baseCurrency.value &&
+      !!expenses.value &&
+      expenses.value.length > 0
+    )
+  })
+
+  const {
+    data: convertedAmounts,
+    isLoading: isLoadingConverted,
+    isFetching: isFetchingConverted,
+  } = useQuery<Record<string, number>>({
+    queryKey: convertedAmountsQueryKey,
+    queryFn: async () => {
+      const currentExpenses = expenses.value
+      const currentBaseCurrency = baseCurrency.value
+
+      if (!currentExpenses || !currentBaseCurrency) {
+        return {}
+      }
+
+      // Filter expenses that need conversion (currency differs from base currency)
+      // Also validate that amount is a number and currency is a string
+      const expensesToConvert = currentExpenses.filter(
+        (expense) =>
+          expense.currency !== currentBaseCurrency &&
+          typeof expense.amount === 'number' &&
+          expense.amount != null &&
+          typeof expense.currency === 'string' &&
+          expense.currency != null
+      )
+
+      // If no expenses need conversion, return empty map
+      if (expensesToConvert.length === 0) {
+        return {}
+      }
+
+      // Prepare items for bulk conversion with validated data
+      const items = expensesToConvert.map((expense) => ({
+        amount: expense.amount as number,
+        currency: expense.currency as string,
+      }))
+
+      // Call bulk conversion
+      const convertedData = await convertAmountsBulk(items, currentBaseCurrency)
+
+      if (!convertedData || !Array.isArray(convertedData)) {
+        console.warn('[useExpenses] No converted data returned from convertAmountsBulk')
+        return {}
+      }
+
+      // Create map: expense id -> converted amount (rounded to integer)
+      const convertedMap: Record<string, number> = {}
+      expensesToConvert.forEach((expense, index) => {
+        const convertedItem = convertedData[index]
+        if (convertedItem && typeof convertedItem === 'object' && 'converted_amount' in convertedItem) {
+          const convertedAmount = convertedItem.converted_amount as number
+          convertedMap[expense.id] = Math.round(convertedAmount)
+        }
+      })
+
+      return convertedMap
+    },
+    enabled: convertedAmountsEnabled,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  })
 
   return {
     expenses,
@@ -97,5 +186,8 @@ export const useExpenses = (scenarioId: MaybeRefOrGetter<string | null | undefin
     error,
     totalAmount,
     isDataLoaded,
+    convertedAmounts,
+    isLoadingConverted,
+    isFetchingConverted,
   }
 }

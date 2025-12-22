@@ -1,9 +1,12 @@
 import { computed, ref, watch, type MaybeRefOrGetter, toValue } from 'vue'
-import { useQueryClient } from '@tanstack/vue-query'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from './useSupabase'
 import { currencyOptions, type CurrencyCode } from '@/constants/currency'
 import { type FrequencyCode, type FrequencyOption } from '@/constants/frequency'
 import { type ExpenseCategory } from '@/constants/financialCategories'
+import { useCurrentUser } from './useCurrentUser'
+import { queryKeys } from '@/lib/queryKeys'
+import type { Expense } from './useExpenses'
 
 export interface ExpenseFormData {
   categoryName: string
@@ -22,12 +25,11 @@ export const useExpenseForm = (
   onSuccess?: () => void
 ) => {
   const queryClient = useQueryClient()
+  const { userId } = useCurrentUser()
 
   // Modal state
   const showModal = ref(false)
   const selectedCategory = ref<ExpenseCategory | null>(null)
-  const isSaving = ref(false)
-  const saveError = ref<string | null>(null)
   const editingExpenseId = ref<string | null>(null)
 
   // Form data
@@ -48,7 +50,6 @@ export const useExpenseForm = (
       currency: null,
       frequency: null,
     }
-    saveError.value = null
   }
 
   // Set default currency from scenario
@@ -128,53 +129,129 @@ export const useExpenseForm = (
     showModal.value = true
   }
 
-  // Handle form submission
-  const handleSubmit = async () => {
-    if (!canSubmit.value) return
-
-    const currentScenarioId = toValue(scenarioId)
-    if (!currentScenarioId) {
-      saveError.value = 'Scenario ID is required'
-      return
-    }
-
-    isSaving.value = true
-    saveError.value = null
-
-    try {
-      const expenseData = {
-        amount: formData.value.amount,
-        currency: formData.value.currency,
-        type: formData.value.categoryName.trim(),
-        frequency: formData.value.frequency || 'monthly',
+  // Mutation for creating/updating expenses
+  const expenseMutation = useMutation({
+    mutationFn: async (variables: { expenseData: any; expenseId?: string | null }) => {
+      const currentScenarioId = toValue(scenarioId)
+      if (!currentScenarioId) {
+        throw new Error('Scenario ID is required')
       }
 
-      if (editingExpenseId.value) {
+      if (variables.expenseId) {
         // Update existing expense
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('expenses')
-          .update(expenseData)
-          .eq('id', editingExpenseId.value)
+          .update(variables.expenseData)
+          .eq('id', variables.expenseId)
+          .select()
+          .single()
 
         if (error) {
           throw error
         }
+        return data
       } else {
         // Insert new expense
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('expenses')
           .insert({
-            ...expenseData,
+            ...variables.expenseData,
             scenario_id: currentScenarioId,
           })
+          .select()
+          .single()
 
         if (error) {
           throw error
         }
+        return data
+      }
+    },
+    onMutate: async (variables) => {
+      const currentUserId = userId.value
+      const currentScenarioId = toValue(scenarioId)
+      if (!currentUserId || !currentScenarioId) return
+
+      const queryKey = queryKeys.expenses.list(currentUserId, currentScenarioId)
+      
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey })
+
+      // Snapshot the previous value
+      const previousExpenses = queryClient.getQueryData<Expense[]>(queryKey)
+
+      // Optimistically update to the new value
+      if (variables.expenseId) {
+        // Update existing expense
+        queryClient.setQueryData<Expense[]>(queryKey, (old) => {
+          if (!old) return old
+          return old.map((expense) =>
+            expense.id === variables.expenseId
+              ? { ...expense, ...variables.expenseData }
+              : expense
+          )
+        })
+      } else {
+        // Add new expense optimistically
+        const optimisticExpense: Expense = {
+          id: `temp-${Date.now()}`,
+          created_at: new Date().toISOString(),
+          user_id: currentUserId,
+          scenario_id: currentScenarioId,
+          ...variables.expenseData,
+        }
+        queryClient.setQueryData<Expense[]>(queryKey, (old) => {
+          return old ? [optimisticExpense, ...old] : [optimisticExpense]
+        })
       }
 
-      // Invalidate expenses query to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      return { previousExpenses }
+    },
+    onError: (error, variables, context) => {
+      const currentUserId = userId.value
+      const currentScenarioId = toValue(scenarioId)
+      if (!currentUserId || !currentScenarioId || !context?.previousExpenses) return
+
+      // Rollback to previous value on error
+      const queryKey = queryKeys.expenses.list(currentUserId, currentScenarioId)
+      queryClient.setQueryData(queryKey, context.previousExpenses)
+      
+      console.error('Failed to save expense:', error)
+    },
+    onSuccess: (data, variables) => {
+      const currentUserId = userId.value
+      const currentScenarioId = toValue(scenarioId)
+      if (!currentUserId || !currentScenarioId) return
+
+      const queryKey = queryKeys.expenses.list(currentUserId, currentScenarioId)
+      
+      // Update with real data from server
+      queryClient.setQueryData<Expense[]>(queryKey, (old) => {
+        if (!old) return [data]
+        
+        if (variables.expenseId) {
+          // Update existing expense
+          return old.map((expense) => (expense.id === data.id ? data : expense))
+        } else {
+          // Replace first optimistic expense (temp ID) with real one
+          const tempIndex = old.findIndex((e) => e.id.startsWith('temp-'))
+          if (tempIndex !== -1) {
+            const newList = [...old]
+            newList[tempIndex] = data
+            return newList
+          }
+          // If no temp found, just add the new one
+          return [data, ...old]
+        }
+      })
+
+      // Invalidate and refetch related queries for immediate update
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
+      // Refetch converted amounts immediately to update the UI
+      queryClient.refetchQueries({ 
+        queryKey: queryKeys.expenses.converted(currentUserId, currentScenarioId, null),
+        type: 'active'
+      })
 
       handleCloseModal()
 
@@ -182,14 +259,36 @@ export const useExpenseForm = (
       if (onSuccess) {
         onSuccess()
       }
-    } catch (error) {
-      console.error('Failed to save expense:', error)
-      saveError.value = error instanceof Error ? error.message : 'Failed to save expense'
-      // TODO: Show error message to user (e.g., using a toast notification)
-    } finally {
-      isSaving.value = false
+    },
+  })
+
+  // Handle form submission
+  const handleSubmit = async () => {
+    if (!canSubmit.value) return
+
+    const currentScenarioId = toValue(scenarioId)
+    if (!currentScenarioId) {
+      return
     }
+
+    const expenseData = {
+      amount: formData.value.amount!,
+      currency: formData.value.currency!,
+      type: formData.value.categoryName.trim(),
+      frequency: formData.value.frequency || 'monthly',
+    }
+
+    expenseMutation.mutate({
+      expenseData,
+      expenseId: editingExpenseId.value,
+    })
   }
+
+  const isSaving = computed(() => expenseMutation.isPending.value)
+  const saveError = computed(() => {
+    const error = expenseMutation.error.value
+    return error instanceof Error ? error.message : error ? 'Failed to save expense' : null
+  })
 
   return {
     // State

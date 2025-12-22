@@ -128,12 +128,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { RouterView } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 import { useTranslation } from '@/i18n'
 import { supabase } from '@/composables/useSupabase'
+import { useAmounts } from '@/composables/useAmounts'
+import { useCurrentScenario } from '@/composables/useCurrentScenario'
+import { useSummary } from '@/composables/useSummary'
 import ScenarioSwitcher from '@/components/ScenarioSwitcher.vue'
 import ScenarioCreator from '@/components/ScenarioCreator.vue'
 
@@ -141,21 +144,16 @@ const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
 const { t } = useTranslation()
+const { formatCurrency } = useAmounts()
+const { scenario } = useCurrentScenario()
 
 const slug = computed(() => route.params.slug as string)
 
-// Mock summary data
-const summary = ref({
-  income: 0,
-  savings: 0,
-  expense: 0,
-  goal: 0,
-  balance: 0
-})
+// Get scenario ID for queries
+const scenarioId = computed(() => scenario.value?.id ?? null)
 
-const formatCurrency = (amount: number) => {
-  return `${amount.toFixed(2)} ${t('currency_symbol')}`
-}
+// Get summary from composable
+const { summary } = useSummary(scenarioId)
 
 const handleSignOut = async () => {
   try {

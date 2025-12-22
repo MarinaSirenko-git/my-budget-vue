@@ -68,10 +68,11 @@ import { computed, ref, watch } from 'vue'
 import { useTranslation } from '@/i18n'
 import { currencyOptions, type CurrencyCode } from '@/constants/currency'
 import { useCurrentScenario } from '@/composables/useCurrentScenario'
-import { useGoals } from '@/composables/useGoals'
+import { useGoals, type Goal } from '@/composables/useGoals'
 import { useCurrentUser } from '@/composables/useCurrentUser'
-import { useQueryClient } from '@tanstack/vue-query'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from '@/composables/useSupabase'
+import { queryKeys } from '@/lib/queryKeys'
 import i18next from 'i18next'
 import EmptyState from '@/components/EmptyState.vue'
 import GoalFormModal, { type GoalFormData } from '@/components/goals/GoalFormModal.vue'
@@ -101,9 +102,106 @@ const isDataLoading = computed(() => {
   return result
 })
 
-// Saving state
-const isSaving = ref(false)
-const saveError = ref<string | null>(null)
+// Mutation for creating goals
+const goalMutation = useMutation({
+  mutationFn: async (goalData: any) => {
+    if (!scenario.value?.id || !userId.value) {
+      throw new Error('Scenario ID and User ID are required')
+    }
+
+    const { data, error } = await supabase
+      .from('goals')
+      .insert({
+        ...goalData,
+        scenario_id: scenario.value.id,
+        user_id: userId.value,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      throw error
+    }
+    return data
+  },
+  onMutate: async (variables) => {
+    const currentUserId = userId.value
+    const currentScenarioId = scenario.value?.id
+    if (!currentUserId || !currentScenarioId) return
+
+    const queryKey = queryKeys.goals.list(currentUserId, currentScenarioId)
+    
+    // Cancel any outgoing refetches
+    await queryClient.cancelQueries({ queryKey })
+
+    // Snapshot the previous value
+    const previousGoals = queryClient.getQueryData<Goal[]>(queryKey)
+
+    // Optimistically add new goal
+    const optimisticGoal: Goal = {
+      id: `temp-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      user_id: currentUserId,
+      scenario_id: currentScenarioId,
+      ...variables,
+    }
+    queryClient.setQueryData<Goal[]>(queryKey, (old) => {
+      return old ? [optimisticGoal, ...old] : [optimisticGoal]
+    })
+
+    return { previousGoals }
+  },
+  onError: (error, _variables, context) => {
+    const currentUserId = userId.value
+    const currentScenarioId = scenario.value?.id
+    if (!currentUserId || !currentScenarioId || !context?.previousGoals) return
+
+    // Rollback to previous value on error
+    const queryKey = queryKeys.goals.list(currentUserId, currentScenarioId)
+    queryClient.setQueryData(queryKey, context.previousGoals)
+    
+    console.error('Failed to save goal:', error)
+  },
+  onSuccess: (data, _variables) => {
+    const currentUserId = userId.value
+    const currentScenarioId = scenario.value?.id
+    if (!currentUserId || !currentScenarioId) return
+
+    const queryKey = queryKeys.goals.list(currentUserId, currentScenarioId)
+    
+    // Update with real data from server
+    queryClient.setQueryData<Goal[]>(queryKey, (old) => {
+      if (!old) return [data]
+      // Replace first optimistic goal (temp ID) with real one
+      const tempIndex = old.findIndex((g) => g.id.startsWith('temp-'))
+      if (tempIndex !== -1) {
+        const newList = [...old]
+        newList[tempIndex] = data
+        return newList
+      }
+      // If no temp found, just add the new one
+      return [data, ...old]
+    })
+
+    // Invalidate and refetch related queries for immediate update
+    queryClient.invalidateQueries({ queryKey: queryKeys.goals.all })
+    // Refetch converted amounts immediately to update the UI
+    queryClient.refetchQueries({ 
+      queryKey: queryKeys.goals.converted(currentUserId, currentScenarioId, null),
+      type: 'active'
+    })
+
+    handleCloseModal()
+  },
+})
+
+const isSaving = computed(() => goalMutation.isPending.value)
+// saveError is available for future error display in UI
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _saveError = computed(() => {
+  const error = goalMutation.error.value
+  return error instanceof Error ? error.message : error ? 'Failed to save goal' : null
+})
 
 // Get current locale from i18next
 const currentLocale = computed<'en' | 'ru'>(() => {
@@ -213,48 +311,18 @@ const formatDate = (dateString: string) => {
 const handleSubmit = async () => {
   if (!canSubmit.value) return
 
-  if (!scenario.value?.id) {
-    saveError.value = 'Scenario ID is required'
+  if (!scenario.value?.id || !userId.value) {
     return
   }
 
-  if (!userId.value) {
-    saveError.value = 'User ID is required'
-    return
+  const goalData = {
+    name: formData.value.name.trim(),
+    target_amount: formData.value.targetAmount!,
+    current_amount: 0, // Start with 0, user can update later
+    target_date: formData.value.targetDate!,
+    currency: formData.value.currency!,
   }
 
-  isSaving.value = true
-  saveError.value = null
-
-  try {
-    const goalData = {
-      name: formData.value.name.trim(),
-      target_amount: formData.value.targetAmount,
-      current_amount: 0, // Start with 0, user can update later
-      target_date: formData.value.targetDate,
-      currency: formData.value.currency,
-      scenario_id: scenario.value.id,
-      user_id: userId.value,
-    }
-
-    const { error } = await supabase
-      .from('goals')
-      .insert(goalData)
-
-    if (error) {
-      throw error
-    }
-
-    // Invalidate goals query to refresh the list
-    queryClient.invalidateQueries({ queryKey: ['goals'] })
-
-    handleCloseModal()
-  } catch (error) {
-    console.error('Failed to save goal:', error)
-    saveError.value = error instanceof Error ? error.message : 'Failed to save goal'
-    // TODO: Show error message to user (e.g., using a toast notification)
-  } finally {
-    isSaving.value = false
-  }
+  goalMutation.mutate(goalData)
 }
 </script>

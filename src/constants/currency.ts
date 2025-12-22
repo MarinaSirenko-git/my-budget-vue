@@ -37,6 +37,41 @@ export interface CurrencyOption {
   value: CurrencyCode
 }
 
+export const currencySymbols: Record<CurrencyCode, string> = {
+  USD: '$',
+  EUR: '€',
+  THB: '฿',
+  RUB: '₽',
+  GBP: '£',
+  JPY: '¥',
+  CNY: '¥',
+  KRW: '₩',
+  AUD: 'A$',
+  CAD: 'C$',
+  CHF: 'CHF',
+  SEK: 'kr',
+  NOK: 'kr',
+  DKK: 'kr',
+  PLN: 'zł',
+  CZK: 'Kč',
+  HUF: 'Ft',
+  TRY: '₺',
+  INR: '₹',
+  IDR: 'Rp',
+  VND: '₫',
+  MYR: 'RM',
+  SGD: 'S$',
+  HKD: 'HK$',
+  NZD: 'NZ$',
+  PHP: '₱',
+  MXN: 'Mex$',
+  BRL: 'R$',
+  ZAR: 'R',
+  ILS: '₪',
+  AED: 'د.إ',
+  SAR: '﷼',
+}
+
 export const currencyOptions: CurrencyOption[] = [
   { label: 'USD - US Dollar', value: 'USD' },
   { label: 'EUR - Euro', value: 'EUR' },

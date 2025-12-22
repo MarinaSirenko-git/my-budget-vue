@@ -2,6 +2,7 @@ import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { supabase } from './useSupabase'
 import type { User } from '@supabase/supabase-js'
+import { queryKeys } from '@/lib/queryKeys'
 
 /**
  * Composable for fetching current authenticated user
@@ -14,7 +15,7 @@ export const useCurrentUser = () => {
     isError,
     error,
   } = useQuery<User | null>({
-    queryKey: ['currentUser'],
+    queryKey: queryKeys.currentUser.all,
     queryFn: async () => {
       const { data, error: userError } = await supabase.auth.getUser()
       if (userError || !data.user) {
