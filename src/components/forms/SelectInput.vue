@@ -25,7 +25,10 @@
         @focus="emitFocus"
         @blur="emitBlur"
       >
-        <span class="truncate text-sm">
+        <span
+          class="truncate text-sm"
+          :class="selectedOption ? 'text-gray-900' : 'text-gray-400'"
+        >
           {{ selectedOption?.label ?? placeholder }}
         </span>
         <svg
