@@ -87,13 +87,6 @@ export const useExpenses = (scenarioId: MaybeRefOrGetter<string | null | undefin
     return enabled.value && dataUpdatedAt.value > 0
   })
 
-  const totalAmount = computed(() => {
-    if (!expenses.value || expenses.value.length === 0) {
-      return 0
-    }
-    return expenses.value.reduce((sum, expense) => sum + (expense.amount || 0), 0)
-  })
-
   // Query for converted amounts in base currency
   const baseCurrency = computed(() => {
     return (scenario.value?.base_currency as CurrencyCode | null) ?? null
@@ -176,6 +169,34 @@ export const useExpenses = (scenarioId: MaybeRefOrGetter<string | null | undefin
     enabled: convertedAmountsEnabled,
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+  })
+
+  const totalAmount = computed(() => {
+    if (!expenses.value || expenses.value.length === 0) {
+      return 0
+    }
+    
+    if (!baseCurrency.value) {
+      return expenses.value.reduce((sum, expense) => sum + (expense.amount || 0), 0)
+    }
+    
+    return expenses.value.reduce((sum, expense) => {
+      if (expense.currency === baseCurrency.value) {
+        return sum + (expense.amount || 0)
+      }
+
+      const converted = convertedAmounts.value?.[expense.id]
+      if (converted != null && typeof converted === 'number') {
+        return sum + converted
+      }
+
+      if (isLoadingConverted.value || isFetchingConverted.value) {
+        return sum
+      }
+
+      console.warn(`[useExpenses] No converted amount for expense ${expense.id} (${expense.currency})`)
+      return sum
+    }, 0)
   })
 
   return {

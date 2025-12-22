@@ -24,8 +24,8 @@ export interface Income {
  * Uses Vue Query for caching and automatic state management
  */
 export const useIncomes = (scenarioId: MaybeRefOrGetter<string | null | undefined>) => {
-  const { userId } = useCurrentUser()
   const queryClient = useQueryClient()
+  const { userId } = useCurrentUser()
   const { scenario } = useCurrentScenario()
   const { convertAmountsBulk } = useAmounts()
 
@@ -88,7 +88,28 @@ export const useIncomes = (scenarioId: MaybeRefOrGetter<string | null | undefine
     if (!incomes.value || incomes.value.length === 0) {
       return 0
     }
-    return incomes.value.reduce((sum, income) => sum + (income.amount || 0), 0)
+    
+    if (!baseCurrency.value) {
+      return incomes.value.reduce((sum, income) => sum + (income.amount || 0), 0)
+    }
+    
+    return incomes.value.reduce((sum, income) => {
+      if (income.currency === baseCurrency.value) {
+        return sum + (income.amount || 0)
+      }
+
+      const converted = convertedAmounts.value?.[income.id]
+      if (converted != null && typeof converted === 'number') {
+        return sum + converted
+      }
+
+      if (isLoadingConverted.value || isFetchingConverted.value) {
+        return 0
+      }
+
+      console.warn(`[useIncomes] No converted amount for income ${income.id} (${income.currency})`)
+      return 0
+    }, 0)
   })
 
   // Query for converted amounts in base currency
@@ -128,6 +149,14 @@ export const useIncomes = (scenarioId: MaybeRefOrGetter<string | null | undefine
         return {}
       }
 
+      // Log incomes with null amount for debugging
+      const incomesWithNullAmount = currentIncomes.filter(
+        (income) => income.amount === null || typeof income.amount !== 'number'
+      )
+      if (incomesWithNullAmount.length > 0) {
+        console.warn('[useIncomes] Found incomes with null or invalid amount:', incomesWithNullAmount)
+      }
+
       // Filter incomes that need conversion (currency differs from base currency)
       // Also validate that amount is a number and currency is a string
       const incomesToConvert = currentIncomes.filter(
@@ -141,6 +170,7 @@ export const useIncomes = (scenarioId: MaybeRefOrGetter<string | null | undefine
 
       // If no incomes need conversion, return empty map
       if (incomesToConvert.length === 0) {
+        console.warn('[useIncomes] No incomes to convert. Total incomes:', currentIncomes.length, 'Base currency:', currentBaseCurrency)
         return {}
       }
 

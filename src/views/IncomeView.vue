@@ -126,16 +126,63 @@ import Button from '@/components/Button.vue'
 import DataTable, { type TableColumn } from '@/components/DataTable.vue'
 
 const { t } = useTranslation()
-const { scenario, isLoading: isLoadingScenario } = useCurrentScenario()
-const { userId } = useCurrentUser()
+
+// Vue cache client
+
+// data control methods:
+
+// .getQueryData() - get data from cache
+// .getQueriesData() - get data from cache by query key
+// .setQueryData() - set data to cache
+// .setQueriesData() - set data to cache by query key
+// .setQueryState() - get state of request by query key
+
+// process control methods:
+
+// .fetchQuery() - fetch data from server
+// .prefetchQuery() - prefetch data from server
+// .fetchInfiniteQuery() - fetch infinite data from server
+// .prefetchInfiniteQuery() - prefetch infinite data from server
+// .ensureQueryData() - ensure data in cache
+// .ensureInfiniteQueryData() - ensure infinite data in cache
+
+// data state control methods:
+
+// .invalidateQueries() - invalidate cache
+// .refetchQueries() - refetch data no matter if it's in cache or not
+// .cancelQueries() - cancel request by query key
+// .removeQueries() - remove queries from cache by query key
+// .resetQueries() - reset queries by query key
+
+// mutation control methods:
+
+// getMutationCache() — get mutation cache
+// getMutationState(mutationKey) — get mutation state
+// setMutationDefaults(mutationKey, options) — set mutation defaults
+// resetMutationDefaults(mutationKey) — reset mutation defaults
+
+// common control methods:
+
+// clear() — clear all queries and mutations from cache
+// getQueryCache() — get query cache
+// getDefaultOptions() — get default options
+// setDefaultOptions(options) — set default options
+// getLogger() — get logger
+// setLogger(logger) — set logger
+
 const queryClient = useQueryClient()
 
-// Use incomes composable - передаем computed для реактивности
+const { scenario, isLoading: isLoadingScenario } = useCurrentScenario()
+const { userId } = useCurrentUser()
+
 const scenarioId = computed(() => {
-  const id = scenario.value?.id
-  return id
+  return scenario.value?.id
 })
-const { incomes, isLoading: isLoadingIncomes, isFetching: isFetchingIncomes, convertedAmounts } = useIncomes(scenarioId)
+
+// Use incomes composable
+const { incomes, isLoading: isLoadingIncomes, isFetching: isFetchingIncomes, convertedAmounts, isLoadingConverted, isFetchingConverted } = useIncomes(scenarioId)
+
+//
 const isDataLoading = computed(() => {
   const result = (() => {
 
@@ -277,6 +324,12 @@ const formatBaseCurrency = (income: Income) => {
     return formatCurrency(convertedAmount, targetCurrency)
   }
   
+  // If conversion is still loading, show loading indicator or original amount
+  if (isLoadingConverted.value || isFetchingConverted.value) {
+    // Show original amount while conversion is loading
+    return formatCurrency(income.amount, income.currency)
+  }
+  
   // If conversion not available yet, show dash
   return '—'
 }
@@ -330,21 +383,13 @@ const deleteIncomeMutation = useMutation({
     queryClient.setQueryData(queryKey, context.previousIncomes)
     
     console.error('Failed to delete income:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Failed to delete income'
-    window.alert(errorMessage)
   },
   onSuccess: () => {
-    const currentUserId = userId.value
-    const currentScenarioId = scenario.value?.id
-    if (!currentUserId || !currentScenarioId) return
-
-    // Invalidate and refetch related queries for immediate update
+    // Don't manually update cache with unencrypted data from 'incomes' table
+    // Instead, invalidate queries to trigger refetch from 'incomes_decrypted' view
+    // This ensures we get properly decrypted data with amount field populated
     queryClient.invalidateQueries({ queryKey: queryKeys.incomes.all })
-    // Refetch converted amounts immediately to update the UI
-    queryClient.refetchQueries({ 
-      queryKey: queryKeys.incomes.converted(currentUserId, currentScenarioId, null),
-      type: 'active'
-    })
+    queryClient.invalidateQueries({ queryKey: queryKeys.summary.all })
   },
 })
 

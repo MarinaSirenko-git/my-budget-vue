@@ -185,7 +185,9 @@ export const useIncomeForm = (
       // Snapshot the previous value
       const previousIncomes = queryClient.getQueryData<Income[]>(queryKey)
 
-      // Optimistically update to the new value
+      // Optimistically update only for editing existing incomes
+      // For new incomes, we wait for server response to avoid issues with
+      // convertedAmounts not having the temporary ID
       if (variables.incomeId) {
         // Update existing income
         queryClient.setQueryData<Income[]>(queryKey, (old) => {
@@ -196,19 +198,10 @@ export const useIncomeForm = (
               : income
           )
         })
-      } else {
-        // Add new income optimistically
-        const optimisticIncome: Income = {
-          id: `temp-${Date.now()}`,
-          created_at: new Date().toISOString(),
-          user_id: currentUserId,
-          scenario_id: currentScenarioId,
-          ...variables.incomeData,
-        }
-        queryClient.setQueryData<Income[]>(queryKey, (old) => {
-          return old ? [optimisticIncome, ...old] : [optimisticIncome]
-        })
       }
+      // Note: We don't optimistically add new incomes to avoid issues with
+      // convertedAmounts not having the temporary ID. The income will appear
+      // after the server responds with the real ID.
 
       return { previousIncomes }
     },
@@ -223,40 +216,15 @@ export const useIncomeForm = (
       
       console.error('Failed to save income:', error)
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       const currentUserId = userId.value
       const currentScenarioId = toValue(scenarioId)
       if (!currentUserId || !currentScenarioId) return
 
-      const queryKey = queryKeys.incomes.list(currentUserId, currentScenarioId)
-      
-      // Update with real data from server
-      queryClient.setQueryData<Income[]>(queryKey, (old) => {
-        if (!old) return [data]
-        
-        if (variables.incomeId) {
-          // Update existing income
-          return old.map((income) => (income.id === data.id ? data : income))
-        } else {
-          // Replace first optimistic income (temp ID) with real one
-          const tempIndex = old.findIndex((e) => e.id.startsWith('temp-'))
-          if (tempIndex !== -1) {
-            const newList = [...old]
-            newList[tempIndex] = data
-            return newList
-          }
-          // If no temp found, just add the new one
-          return [data, ...old]
-        }
-      })
-
-      // Invalidate and refetch related queries for immediate update
+      // Don't manually update cache with unencrypted data from 'incomes' table
+      // Instead, invalidate queries to trigger refetch from 'incomes_decrypted' view
+      // This ensures we get properly decrypted data with amount field populated
       queryClient.invalidateQueries({ queryKey: queryKeys.incomes.all })
-      // Refetch converted amounts immediately to update the UI
-      queryClient.refetchQueries({ 
-        queryKey: queryKeys.incomes.converted(currentUserId, currentScenarioId, null),
-        type: 'active'
-      })
 
       handleCloseModal()
 
@@ -272,9 +240,7 @@ export const useIncomeForm = (
     if (!canSubmit.value) return
 
     const currentScenarioId = toValue(scenarioId)
-    if (!currentScenarioId) {
-      return
-    }
+    if (!currentScenarioId) return
 
     const incomeData = {
       amount: formData.value.amount!,

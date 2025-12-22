@@ -29,7 +29,7 @@
           {{ formatCurrency(row.amount, row.currency) }}
         </template>
         <template #cell-base_currency="{ row }">
-          {{ formatBaseCurrency(row.amount, row.currency) }}
+          {{ formatBaseCurrency(row) }}
         </template>
         <template #cell-frequency="{ row }">
           {{ formatFrequency(row.frequency) }}
@@ -126,15 +126,15 @@ import ExpenseFormModal from '@/components/expenses/ExpenseFormModal.vue'
 
 const { t } = useTranslation()
 const { scenario, isLoading: isLoadingScenario } = useCurrentScenario()
-const { userId } = useCurrentUser()
 const queryClient = useQueryClient()
+const { userId } = useCurrentUser()
 
 // Use expenses composable - передаем computed для реактивности
 const scenarioId = computed(() => {
   const id = scenario.value?.id
   return id
 })
-const { expenses, isLoading: isLoadingExpenses, isFetching: isFetchingExpenses } = useExpenses(scenarioId)
+const { expenses, isLoading: isLoadingExpenses, isFetching: isFetchingExpenses, convertedAmounts, isLoadingConverted, isFetchingConverted } = useExpenses(scenarioId)
 
 const isDataLoading = computed(() => {
   const result = (() => {
@@ -244,19 +244,30 @@ const formatFrequency = (frequency: string) => {
 }
 
 // Format amount in base currency
-const formatBaseCurrency = (amount: number, expenseCurrency: string) => {
+const formatBaseCurrency = (expense: Expense) => {
   const targetCurrency = displayBaseCurrency.value
   if (!targetCurrency) {
     return '—'
   }
   
   // If expense currency matches target currency, show the same amount
-  if (expenseCurrency === targetCurrency) {
-    return formatCurrency(amount, targetCurrency)
+  if (expense.currency === targetCurrency) {
+    return formatCurrency(expense.amount, targetCurrency)
   }
   
-  // TODO: Implement currency conversion when API is available
-  // For now, show dash if currencies don't match
+  // Use converted amount from bulk conversion
+  const convertedAmount = convertedAmounts.value?.[expense.id]
+  if (convertedAmount !== undefined && convertedAmount !== null) {
+    return formatCurrency(convertedAmount, targetCurrency)
+  }
+  
+  // If conversion is still loading, show loading indicator or original amount
+  if (isLoadingConverted.value || isFetchingConverted.value) {
+    // Show original amount while conversion is loading
+    return formatCurrency(expense.amount, expense.currency)
+  }
+  
+  // If conversion not available yet, show dash
   return '—'
 }
 
@@ -309,21 +320,13 @@ const deleteExpenseMutation = useMutation({
     queryClient.setQueryData(queryKey, context.previousExpenses)
     
     console.error('Failed to delete expense:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Failed to delete expense'
-    window.alert(errorMessage)
   },
   onSuccess: () => {
-    const currentUserId = userId.value
-    const currentScenarioId = scenario.value?.id
-    if (!currentUserId || !currentScenarioId) return
-
-    // Invalidate and refetch related queries for immediate update
+    // Don't manually update cache with unencrypted data from 'expenses' table
+    // Instead, invalidate queries to trigger refetch from 'expenses_decrypted' view
+    // This ensures we get properly decrypted data with amount field populated
     queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
-    // Refetch converted amounts immediately to update the UI
-    queryClient.refetchQueries({ 
-      queryKey: queryKeys.expenses.converted(currentUserId, currentScenarioId, null),
-      type: 'active'
-    })
+    queryClient.invalidateQueries({ queryKey: queryKeys.summary.all })
   },
 })
 

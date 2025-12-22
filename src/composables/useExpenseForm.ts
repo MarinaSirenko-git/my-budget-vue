@@ -116,7 +116,7 @@ export const useExpenseForm = (
   }
 
   // Start editing an expense
-  const startEdit = (expense: { id: string; type: string; amount: number; currency: string; frequency: string }) => {
+  const startEdit = (expense: Expense) => {
     editingExpenseId.value = expense.id
     formData.value = {
       categoryName: expense.type,
@@ -180,7 +180,9 @@ export const useExpenseForm = (
       // Snapshot the previous value
       const previousExpenses = queryClient.getQueryData<Expense[]>(queryKey)
 
-      // Optimistically update to the new value
+      // Optimistically update only for editing existing expenses
+      // For new expenses, we wait for server response to avoid issues with
+      // convertedAmounts not having the temporary ID
       if (variables.expenseId) {
         // Update existing expense
         queryClient.setQueryData<Expense[]>(queryKey, (old) => {
@@ -191,23 +193,14 @@ export const useExpenseForm = (
               : expense
           )
         })
-      } else {
-        // Add new expense optimistically
-        const optimisticExpense: Expense = {
-          id: `temp-${Date.now()}`,
-          created_at: new Date().toISOString(),
-          user_id: currentUserId,
-          scenario_id: currentScenarioId,
-          ...variables.expenseData,
-        }
-        queryClient.setQueryData<Expense[]>(queryKey, (old) => {
-          return old ? [optimisticExpense, ...old] : [optimisticExpense]
-        })
       }
+      // Note: We don't optimistically add new expenses to avoid issues with
+      // convertedAmounts not having the temporary ID. The expense will appear
+      // after the server responds with the real ID.
 
       return { previousExpenses }
     },
-    onError: (error, variables, context) => {
+    onError: (error, _variables, context) => {
       const currentUserId = userId.value
       const currentScenarioId = toValue(scenarioId)
       if (!currentUserId || !currentScenarioId || !context?.previousExpenses) return
@@ -218,40 +211,15 @@ export const useExpenseForm = (
       
       console.error('Failed to save expense:', error)
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       const currentUserId = userId.value
       const currentScenarioId = toValue(scenarioId)
       if (!currentUserId || !currentScenarioId) return
 
-      const queryKey = queryKeys.expenses.list(currentUserId, currentScenarioId)
-      
-      // Update with real data from server
-      queryClient.setQueryData<Expense[]>(queryKey, (old) => {
-        if (!old) return [data]
-        
-        if (variables.expenseId) {
-          // Update existing expense
-          return old.map((expense) => (expense.id === data.id ? data : expense))
-        } else {
-          // Replace first optimistic expense (temp ID) with real one
-          const tempIndex = old.findIndex((e) => e.id.startsWith('temp-'))
-          if (tempIndex !== -1) {
-            const newList = [...old]
-            newList[tempIndex] = data
-            return newList
-          }
-          // If no temp found, just add the new one
-          return [data, ...old]
-        }
-      })
-
-      // Invalidate and refetch related queries for immediate update
+      // Don't manually update cache with unencrypted data from 'expenses' table
+      // Instead, invalidate queries to trigger refetch from 'expenses_decrypted' view
+      // This ensures we get properly decrypted data with amount field populated
       queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
-      // Refetch converted amounts immediately to update the UI
-      queryClient.refetchQueries({ 
-        queryKey: queryKeys.expenses.converted(currentUserId, currentScenarioId, null),
-        type: 'active'
-      })
 
       handleCloseModal()
 

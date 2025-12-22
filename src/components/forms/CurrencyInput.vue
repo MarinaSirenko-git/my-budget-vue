@@ -77,6 +77,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: number | null): void
   (e: 'focus', event: FocusEvent): void
   (e: 'blur', event: FocusEvent): void
+  (e: 'change', event: Event): void
 }>()
 
 const inputId = ref(`currency-input-${Math.random().toString(36).slice(2, 8)}`)

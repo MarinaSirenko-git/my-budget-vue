@@ -86,20 +86,6 @@ export const useGoals = (scenarioId: MaybeRefOrGetter<string | null | undefined>
     return enabled.value && dataUpdatedAt.value > 0
   })
 
-  const totalTargetAmount = computed(() => {
-    if (!goals.value || goals.value.length === 0) {
-      return 0
-    }
-    return goals.value.reduce((sum, goal) => sum + (goal.target_amount || 0), 0)
-  })
-
-  const totalCurrentAmount = computed(() => {
-    if (!goals.value || goals.value.length === 0) {
-      return 0
-    }
-    return goals.value.reduce((sum, goal) => sum + (goal.current_amount || 0), 0)
-  })
-
   // Query for converted amounts in base currency (for target_amount)
   const baseCurrency = computed(() => {
     return (scenario.value?.base_currency as CurrencyCode | null) ?? null
@@ -182,6 +168,41 @@ export const useGoals = (scenarioId: MaybeRefOrGetter<string | null | undefined>
     enabled: convertedAmountsEnabled,
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+  })
+
+  const totalTargetAmount = computed(() => {
+    if (!goals.value || goals.value.length === 0) {
+      return 0
+    }
+    
+    if (!baseCurrency.value) {
+      return goals.value.reduce((sum, goal) => sum + (goal.target_amount || 0), 0)
+    }
+    
+    return goals.value.reduce((sum, goal) => {
+      if (goal.currency === baseCurrency.value) {
+        return sum + (goal.target_amount || 0)
+      }
+
+      const converted = convertedAmounts.value?.[goal.id]
+      if (converted != null && typeof converted === 'number') {
+        return sum + converted
+      }
+
+      if (isLoadingConverted.value || isFetchingConverted.value) {
+        return sum
+      }
+
+      console.warn(`[useGoals] No converted amount for goal ${goal.id} (${goal.currency})`)
+      return sum
+    }, 0)
+  })
+
+  const totalCurrentAmount = computed(() => {
+    if (!goals.value || goals.value.length === 0) {
+      return 0
+    }
+    return goals.value.reduce((sum, goal) => sum + (goal.current_amount || 0), 0)
   })
 
   return {
