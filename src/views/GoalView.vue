@@ -17,25 +17,15 @@
         </Button>
       </div>
 
-      <!-- TODO: Add DataTable for goals when needed -->
-      <div class="space-y-4">
-        <div
+      <div class="grid grid-cols-2 gap-4">
+        <GoalCard
           v-for="goal in goals"
           :key="goal.id"
-          class="p-4 border border-gray-200 rounded-lg"
-        >
-          <div class="flex justify-between items-start">
-            <div>
-              <h3 class="font-medium text-gray-900">{{ goal.name }}</h3>
-              <p class="text-sm text-gray-600 mt-1">
-                {{ formatCurrency(goal.current_amount || 0, goal.currency) }} / {{ formatCurrency(goal.target_amount, goal.currency) }}
-              </p>
-              <p v-if="goal.target_date" class="text-xs text-gray-500 mt-1">
-                {{ t('goal_form_target_date_label') }}: {{ formatDate(goal.target_date) }}
-              </p>
-            </div>
-          </div>
-        </div>
+          :goal="goal"
+          :locale-string="localeString"
+          @edit="handleEdit"
+          @delete="handleDelete"
+        />
       </div>
     </div>
 
@@ -48,12 +38,13 @@
       :action-button="{ label: t('goal_empty_add_first'), onClick: handleAddGoal }"
     />
 
-    <!-- Add Goal Modal -->
+    <!-- Add/Edit Goal Modal -->
     <GoalFormModal
       v-model="showModal"
       :form-data="formData"
       :is-saving="isSaving"
       :can-submit="canSubmit"
+      :is-editing="!!editingGoalId"
       :locale-string="localeString"
       :currency-options="currencyOptions"
       :min-date="minDate"
@@ -76,6 +67,7 @@ import { queryKeys } from '@/lib/queryKeys'
 import i18next from 'i18next'
 import EmptyState from '@/components/EmptyState.vue'
 import GoalFormModal, { type GoalFormData } from '@/components/goals/GoalFormModal.vue'
+import GoalCard from '@/components/goals/GoalCard.vue'
 import Button from '@/components/Button.vue'
 
 const { t } = useTranslation()
@@ -102,27 +94,43 @@ const isDataLoading = computed(() => {
   return result
 })
 
-// Mutation for creating goals
+// Mutation for creating/updating goals
 const goalMutation = useMutation({
-  mutationFn: async (goalData: any) => {
+  mutationFn: async ({ goalData, goalId }: { goalData: any; goalId: string | null }) => {
     if (!scenario.value?.id || !userId.value) {
       throw new Error('Scenario ID and User ID are required')
     }
 
-    const { data, error } = await supabase
-      .from('goals')
-      .insert({
-        ...goalData,
-        scenario_id: scenario.value.id,
-        user_id: userId.value,
-      })
-      .select()
-      .single()
+    if (goalId) {
+      // Update existing goal
+      const { data, error } = await supabase
+        .from('goals')
+        .update(goalData)
+        .eq('id', goalId)
+        .select()
+        .single()
 
-    if (error) {
-      throw error
+      if (error) {
+        throw error
+      }
+      return data
+    } else {
+      // Create new goal
+      const { data, error } = await supabase
+        .from('goals')
+        .insert({
+          ...goalData,
+          scenario_id: scenario.value.id,
+          user_id: userId.value,
+        })
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+      return data
     }
-    return data
   },
   onMutate: async (variables) => {
     const currentUserId = userId.value
@@ -137,17 +145,29 @@ const goalMutation = useMutation({
     // Snapshot the previous value
     const previousGoals = queryClient.getQueryData<Goal[]>(queryKey)
 
-    // Optimistically add new goal
-    const optimisticGoal: Goal = {
-      id: `temp-${Date.now()}`,
-      created_at: new Date().toISOString(),
-      user_id: currentUserId,
-      scenario_id: currentScenarioId,
-      ...variables,
+    if (variables.goalId) {
+      // Optimistically update existing goal
+      queryClient.setQueryData<Goal[]>(queryKey, (old) => {
+        if (!old) return old
+        return old.map((goal) =>
+          goal.id === variables.goalId
+            ? { ...goal, ...variables.goalData }
+            : goal
+        )
+      })
+    } else {
+      // Optimistically add new goal
+      const optimisticGoal: Goal = {
+        id: `temp-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        user_id: currentUserId,
+        scenario_id: currentScenarioId,
+        ...variables.goalData,
+      }
+      queryClient.setQueryData<Goal[]>(queryKey, (old) => {
+        return old ? [optimisticGoal, ...old] : [optimisticGoal]
+      })
     }
-    queryClient.setQueryData<Goal[]>(queryKey, (old) => {
-      return old ? [optimisticGoal, ...old] : [optimisticGoal]
-    })
 
     return { previousGoals }
   },
@@ -172,15 +192,21 @@ const goalMutation = useMutation({
     // Update with real data from server
     queryClient.setQueryData<Goal[]>(queryKey, (old) => {
       if (!old) return [data]
-      // Replace first optimistic goal (temp ID) with real one
-      const tempIndex = old.findIndex((g) => g.id.startsWith('temp-'))
-      if (tempIndex !== -1) {
-        const newList = [...old]
-        newList[tempIndex] = data
-        return newList
+      
+      if (editingGoalId.value) {
+        // Update existing goal
+        return old.map((goal) => (goal.id === editingGoalId.value ? data : goal))
+      } else {
+        // Replace first optimistic goal (temp ID) with real one
+        const tempIndex = old.findIndex((g) => g.id.startsWith('temp-'))
+        if (tempIndex !== -1) {
+          const newList = [...old]
+          newList[tempIndex] = data
+          return newList
+        }
+        // If no temp found, just add the new one
+        return [data, ...old]
       }
-      // If no temp found, just add the new one
-      return [data, ...old]
     })
 
     // Invalidate and refetch related queries for immediate update
@@ -222,6 +248,7 @@ const minDate = computed(() => {
 
 // Modal state
 const showModal = ref(false)
+const editingGoalId = ref<string | null>(null)
 
 // Form data
 const formData = ref<GoalFormData>({
@@ -240,6 +267,7 @@ watch(showModal, (isOpen) => {
       currency: null,
       targetDate: null,
     }
+    editingGoalId.value = null
   } else {
     // Set default currency from scenario when modal opens, if not already set
     if (!formData.value.currency && scenario.value?.base_currency) {
@@ -279,35 +307,6 @@ const handleCloseModal = () => {
   showModal.value = false
 }
 
-// Format currency using Intl.NumberFormat
-const formatCurrency = (amount: number, currency: string) => {
-  try {
-    return new Intl.NumberFormat(localeString.value, {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount)
-  } catch (error) {
-    // Fallback if currency or locale is invalid
-    return `${amount.toFixed(2)} ${currency}`
-  }
-}
-
-// Format date
-const formatDate = (dateString: string) => {
-  try {
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat(localeString.value, {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }).format(date)
-  } catch (error) {
-    return dateString
-  }
-}
-
 const handleSubmit = async () => {
   if (!canSubmit.value) return
 
@@ -315,14 +314,103 @@ const handleSubmit = async () => {
     return
   }
 
-  const goalData = {
+  const goalData: any = {
     name: formData.value.name.trim(),
     target_amount: formData.value.targetAmount!,
-    current_amount: 0, // Start with 0, user can update later
     target_date: formData.value.targetDate!,
     currency: formData.value.currency!,
   }
 
-  goalMutation.mutate(goalData)
+  // Only set current_amount to 0 for new goals
+  if (!editingGoalId.value) {
+    goalData.current_amount = 0
+  }
+
+  goalMutation.mutate({
+    goalData,
+    goalId: editingGoalId.value,
+  })
+}
+
+// Handle edit goal
+const handleEdit = (goal: Goal) => {
+  editingGoalId.value = goal.id
+  formData.value = {
+    name: goal.name,
+    targetAmount: goal.target_amount,
+    currency: goal.currency as CurrencyCode,
+    targetDate: goal.target_date || null,
+  }
+  showModal.value = true
+}
+
+// Mutation for deleting goals
+const deleteGoalMutation = useMutation({
+  mutationFn: async (goalId: string) => {
+    const { error } = await supabase
+      .from('goals')
+      .delete()
+      .eq('id', goalId)
+
+    if (error) {
+      throw error
+    }
+    return goalId
+  },
+  onMutate: async (goalId) => {
+    const currentUserId = userId.value
+    const currentScenarioId = scenario.value?.id
+    if (!currentUserId || !currentScenarioId) return
+
+    const queryKey = queryKeys.goals.list(currentUserId, currentScenarioId)
+    
+    // Cancel any outgoing refetches
+    await queryClient.cancelQueries({ queryKey })
+
+    // Snapshot the previous value
+    const previousGoals = queryClient.getQueryData<Goal[]>(queryKey)
+
+    // Optimistically remove goal
+    queryClient.setQueryData<Goal[]>(queryKey, (old) => {
+      return old ? old.filter((goal) => goal.id !== goalId) : []
+    })
+
+    return { previousGoals }
+  },
+  onError: (error, _goalId, context) => {
+    const currentUserId = userId.value
+    const currentScenarioId = scenario.value?.id
+    if (!currentUserId || !currentScenarioId || !context?.previousGoals) return
+
+    // Rollback to previous value on error
+    const queryKey = queryKeys.goals.list(currentUserId, currentScenarioId)
+    queryClient.setQueryData(queryKey, context.previousGoals)
+    
+    console.error('Failed to delete goal:', error)
+  },
+  onSuccess: () => {
+    const currentUserId = userId.value
+    const currentScenarioId = scenario.value?.id
+    if (!currentUserId || !currentScenarioId) return
+
+    // Invalidate and refetch related queries for immediate update
+    queryClient.invalidateQueries({ queryKey: queryKeys.goals.all })
+    queryClient.refetchQueries({ 
+      queryKey: queryKeys.goals.converted(currentUserId, currentScenarioId, null),
+      type: 'active'
+    })
+  },
+})
+
+// Handle delete goal
+const handleDelete = async (goal: Goal) => {
+  const confirmMessage = t('goal_delete_confirm', { name: goal.name }) || `Are you sure you want to delete "${goal.name}"?`
+  const confirmed = window.confirm(confirmMessage)
+  
+  if (!confirmed) {
+    return
+  }
+
+  deleteGoalMutation.mutate(goal.id)
 }
 </script>

@@ -62,7 +62,7 @@ export const useGoals = (scenarioId: MaybeRefOrGetter<string | null | undefined>
 
       // Try to use decrypted view if available, otherwise use regular table
       const { data, error: goalsError } = await supabase
-        .from('goals')
+        .from('goals_decrypted')
         .select('*')
         .eq('user_id', userId.value)
         .eq('scenario_id', currentScenarioId)
@@ -205,6 +205,151 @@ export const useGoals = (scenarioId: MaybeRefOrGetter<string | null | undefined>
     return goals.value.reduce((sum, goal) => sum + (goal.current_amount || 0), 0)
   })
 
+  // Calculate monthly payments for each goal
+  const monthlyPayments = computed(() => {
+    if (!goals.value || goals.value.length === 0) return {}
+    
+    const payments: Record<string, number> = {}
+    
+    goals.value.forEach((goal) => {
+      if (!goal.target_date) {
+        payments[goal.id] = 0
+        return
+      }
+      
+      // Calculate total months from creation to target date
+      const createdDate = new Date(goal.created_at)
+      const targetDate = new Date(goal.target_date)
+      
+      // Set to start of day for accurate calculation
+      createdDate.setHours(0, 0, 0, 0)
+      targetDate.setHours(0, 0, 0, 0)
+      
+      const yearsDiff = targetDate.getFullYear() - createdDate.getFullYear()
+      const monthsDiff = targetDate.getMonth() - createdDate.getMonth()
+      const totalMonths = Math.max(1, yearsDiff * 12 + monthsDiff)
+      
+      // Calculate monthly payment (round up to nearest cent)
+      const monthly = goal.target_amount / totalMonths
+      payments[goal.id] = Math.ceil(monthly * 100) / 100
+    })
+    
+    return payments
+  })
+
+  // Query for converted monthly payments in base currency
+  const convertedMonthlyPaymentsQueryKey = computed(() => {
+    // Include goals length to trigger recalculation when goals change
+    return [
+      ...queryKeys.goals.converted(userId.value, toValue(scenarioId) ?? null, baseCurrency.value ?? null),
+      'monthly-payments',
+      goals.value?.length ?? 0,
+    ]
+  })
+
+  const convertedMonthlyPaymentsEnabled = computed(() => {
+    return (
+      !!userId.value &&
+      !!toValue(scenarioId) &&
+      !!baseCurrency.value &&
+      !!goals.value &&
+      goals.value.length > 0
+    )
+  })
+
+  const {
+    data: convertedMonthlyPayments,
+    isLoading: isLoadingMonthlyConverted,
+    isFetching: isFetchingMonthlyConverted,
+  } = useQuery<Record<string, number>>({
+    queryKey: convertedMonthlyPaymentsQueryKey,
+    queryFn: async () => {
+      const currentGoals = goals.value
+      const currentBaseCurrency = baseCurrency.value
+      const currentMonthlyPayments = monthlyPayments.value
+
+      if (!currentGoals || !currentBaseCurrency || Object.keys(currentMonthlyPayments).length === 0) {
+        return {}
+      }
+
+      // Filter goals that need conversion (currency differs from base currency)
+      const goalsToConvert = currentGoals.filter(
+        (goal) =>
+          goal.currency !== currentBaseCurrency &&
+          typeof currentMonthlyPayments[goal.id] === 'number' &&
+          currentMonthlyPayments[goal.id] > 0 &&
+          typeof goal.currency === 'string' &&
+          goal.currency != null
+      )
+
+      // If no goals need conversion, return empty map
+      if (goalsToConvert.length === 0) {
+        return {}
+      }
+
+      // Prepare items for bulk conversion with monthly payment amounts
+      const items = goalsToConvert.map((goal) => ({
+        amount: currentMonthlyPayments[goal.id],
+        currency: goal.currency as string,
+      }))
+
+      // Call bulk conversion
+      const convertedData = await convertAmountsBulk(items, currentBaseCurrency)
+
+      if (!convertedData || !Array.isArray(convertedData)) {
+        console.warn('[useGoals] No converted monthly payments data returned from convertAmountsBulk')
+        return {}
+      }
+
+      // Create map: goal id -> converted monthly payment (rounded to 2 decimal places)
+      const convertedMap: Record<string, number> = {}
+      goalsToConvert.forEach((goal, index) => {
+        const convertedItem = convertedData[index]
+        if (convertedItem && typeof convertedItem === 'object' && 'converted_amount' in convertedItem) {
+          const convertedAmount = convertedItem.converted_amount as number
+          convertedMap[goal.id] = Math.round(convertedAmount * 100) / 100 // Round to 2 decimal places
+        }
+      })
+
+      return convertedMap
+    },
+    enabled: convertedMonthlyPaymentsEnabled,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  })
+
+  // Calculate total monthly payments in base currency
+  const totalMonthlyPayments = computed(() => {
+    if (!goals.value || goals.value.length === 0) {
+      return 0
+    }
+    
+    if (!baseCurrency.value) {
+      // If no base currency, sum all monthly payments in their original currencies
+      return Object.values(monthlyPayments.value).reduce((sum, payment) => sum + payment, 0)
+    }
+    
+    return goals.value.reduce((sum, goal) => {
+      const monthlyPayment = monthlyPayments.value[goal.id] || 0
+      
+      if (goal.currency === baseCurrency.value) {
+        return sum + monthlyPayment
+      }
+
+      const converted = convertedMonthlyPayments.value?.[goal.id]
+      if (converted != null && typeof converted === 'number') {
+        return sum + converted
+      }
+
+      if (isLoadingMonthlyConverted.value || isFetchingMonthlyConverted.value) {
+        return sum
+      }
+
+      console.warn(`[useGoals] No converted monthly payment for goal ${goal.id} (${goal.currency})`)
+      return sum
+    }, 0)
+  })
+
   return {
     goals,
     isLoading,
@@ -213,9 +358,14 @@ export const useGoals = (scenarioId: MaybeRefOrGetter<string | null | undefined>
     error,
     totalTargetAmount,
     totalCurrentAmount,
+    totalMonthlyPayments,
     isDataLoaded,
     convertedAmounts,
     isLoadingConverted,
     isFetchingConverted,
+    monthlyPayments,
+    convertedMonthlyPayments,
+    isLoadingMonthlyConverted,
+    isFetchingMonthlyConverted,
   }
 }

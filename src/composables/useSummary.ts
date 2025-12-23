@@ -19,7 +19,7 @@ export const useSummary = (scenarioId: MaybeRefOrGetter<string | null | undefine
   // Get totals from composables (already computed with currency conversion)
   const { totalAmount: incomeTotal } = useIncomes(scenarioId)
   const { totalAmount: expenseTotal } = useExpenses(scenarioId)
-  const { totalTargetAmount: goalTotal } = useGoals(scenarioId)
+  const { totalMonthlyPayments: goalTotal } = useGoals(scenarioId)
 
 
   // Calculate summary from composable totals
