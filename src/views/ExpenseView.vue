@@ -24,6 +24,7 @@
         :show-currency-dropdown="true"
         :currency-options="currencyOptions"
         v-model:display-base-currency="displayBaseCurrency"
+        @currency-change="handleCurrencyChange"
       >
         <template #cell-limit="{ row }">
           {{ formatCurrency(row.amount, row.currency) }}
@@ -114,6 +115,7 @@ import { getFrequencyOptions, getFrequencyLabel, type FrequencyCode } from '@/co
 import { useCurrentScenario } from '@/composables/useCurrentScenario'
 import { useExpenses, type Expense } from '@/composables/useExpenses'
 import { useExpenseForm } from '@/composables/useExpenseForm'
+import { useDisplayCurrencyConversion } from '@/composables/useDisplayCurrencyConversion'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from '@/composables/useSupabase'
 import { useCurrentUser } from '@/composables/useCurrentUser'
@@ -223,6 +225,20 @@ watch(() => scenario.value?.base_currency, (newCurrency) => {
   }
 }, { immediate: true })
 
+// Use display currency conversion composable
+const {
+  convertedAmounts: displayConvertedAmounts,
+  isLoading: isLoadingDisplayConverted,
+  isFetching: isFetchingDisplayConverted,
+} = useDisplayCurrencyConversion(expenses, displayBaseCurrency, 'expenses')
+
+// Handle currency change event from DataTable
+const handleCurrencyChange = (currency: CurrencyCode) => {
+  // The conversion will automatically trigger via reactivity of displayBaseCurrency
+  // which is already updated by v-model:display-base-currency
+  // This handler can be used for additional logic if needed in the future
+}
+
 // Format currency using Intl.NumberFormat
 const formatCurrency = (amount: number, currency: string) => {
   try {
@@ -243,7 +259,7 @@ const formatFrequency = (frequency: string) => {
   return getFrequencyLabel(frequency as FrequencyCode, currentLocale.value)
 }
 
-// Format amount in base currency
+// Format amount in base currency (using display currency for table display)
 const formatBaseCurrency = (expense: Expense) => {
   const targetCurrency = displayBaseCurrency.value
   if (!targetCurrency) {
@@ -255,14 +271,14 @@ const formatBaseCurrency = (expense: Expense) => {
     return formatCurrency(expense.amount, targetCurrency)
   }
   
-  // Use converted amount from bulk conversion
-  const convertedAmount = convertedAmounts.value?.[expense.id]
+  // Use converted amount from display conversion (for selected display currency)
+  const convertedAmount = displayConvertedAmounts.value?.[expense.id]
   if (convertedAmount !== undefined && convertedAmount !== null) {
     return formatCurrency(convertedAmount, targetCurrency)
   }
   
   // If conversion is still loading, show loading indicator or original amount
-  if (isLoadingConverted.value || isFetchingConverted.value) {
+  if (isLoadingDisplayConverted.value || isFetchingDisplayConverted.value) {
     // Show original amount while conversion is loading
     return formatCurrency(expense.amount, expense.currency)
   }

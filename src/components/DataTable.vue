@@ -178,18 +178,22 @@ const toggleCurrencyDropdown = async () => {
 }
 
 const updateCurrencyDropdownPosition = () => {
-  if (!currencyHeaderRef.value || !currencyDropdownRef.value) {
+  const header = currencyHeaderRef.value
+  const dropdown = currencyDropdownRef.value
+  
+  // Check if refs exist and are DOM elements
+  if (!header || !dropdown || 
+      !(header instanceof HTMLElement) || 
+      !(dropdown instanceof HTMLElement)) {
     // Retry if elements are not ready yet
     requestAnimationFrame(() => {
-      if (currencyHeaderRef.value && currencyDropdownRef.value) {
-        updateCurrencyDropdownPosition()
-      }
+      updateCurrencyDropdownPosition()
     })
     return
   }
 
-  const headerRect = currencyHeaderRef.value.getBoundingClientRect()
-  const dropdownRect = currencyDropdownRef.value.getBoundingClientRect()
+  const headerRect = header.getBoundingClientRect()
+  const dropdownRect = dropdown.getBoundingClientRect()
   
   // Calculate position
   let top = headerRect.bottom + 4
@@ -241,6 +245,8 @@ const handleClickOutside = (event: MouseEvent) => {
   if (
     header &&
     dropdown &&
+    header instanceof HTMLElement &&
+    dropdown instanceof HTMLElement &&
     target &&
     !header.contains(target) &&
     !dropdown.contains(target)

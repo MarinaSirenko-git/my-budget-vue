@@ -24,6 +24,7 @@
         :show-currency-dropdown="true"
         :currency-options="currencyOptions"
         v-model:display-base-currency="displayBaseCurrency"
+        @currency-change="handleCurrencyChange"
       >
         <template #cell-expected_amount="{ row }">
           {{ formatCurrency(row.amount, row.currency) }}
@@ -115,6 +116,7 @@ import { getFrequencyOptions, getFrequencyLabel, type FrequencyCode } from '@/co
 import { useCurrentScenario } from '@/composables/useCurrentScenario'
 import { useIncomes, type Income } from '@/composables/useIncomes'
 import { useIncomeForm } from '@/composables/useIncomeForm'
+import { useDisplayCurrencyConversion } from '@/composables/useDisplayCurrencyConversion'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { supabase } from '@/composables/useSupabase'
 import { useCurrentUser } from '@/composables/useCurrentUser'
@@ -286,6 +288,20 @@ watch(() => scenario.value?.base_currency, (newCurrency) => {
   }
 }, { immediate: true })
 
+// Use display currency conversion composable
+const {
+  convertedAmounts: displayConvertedAmounts,
+  isLoading: isLoadingDisplayConverted,
+  isFetching: isFetchingDisplayConverted,
+} = useDisplayCurrencyConversion(incomes, displayBaseCurrency, 'incomes')
+
+// Handle currency change event from DataTable
+const handleCurrencyChange = (currency: CurrencyCode) => {
+  // The conversion will automatically trigger via reactivity of displayBaseCurrency
+  // which is already updated by v-model:display-base-currency
+  // This handler can be used for additional logic if needed in the future
+}
+
 // Format currency using Intl.NumberFormat
 const formatCurrency = (amount: number, currency: string) => {
   try {
@@ -306,7 +322,35 @@ const formatFrequency = (frequency: string) => {
   return getFrequencyLabel(frequency as FrequencyCode, currentLocale.value)
 }
 
-// Format amount in base currency
+// // Format amount in base currency
+// const formatBaseCurrency = (income: Income) => {
+//   const targetCurrency = displayBaseCurrency.value
+//   if (!targetCurrency) {
+//     return '—'
+//   }
+  
+//   // If income currency matches target currency, show the same amount
+//   if (income.currency === targetCurrency) {
+//     return formatCurrency(income.amount, targetCurrency)
+//   }
+  
+//   // Use converted amount from bulk conversion
+//   const convertedAmount = convertedAmounts.value?.[income.id]
+//   if (convertedAmount !== undefined && convertedAmount !== null) {
+//     return formatCurrency(convertedAmount, targetCurrency)
+//   }
+  
+//   // If conversion is still loading, show loading indicator or original amount
+//   if (isLoadingConverted.value || isFetchingConverted.value) {
+//     // Show original amount while conversion is loading
+//     return formatCurrency(income.amount, income.currency)
+//   }
+  
+//   // If conversion not available yet, show dash
+//   return '—'
+// }
+
+// Format amount in base currency (using display currency for table display)
 const formatBaseCurrency = (income: Income) => {
   const targetCurrency = displayBaseCurrency.value
   if (!targetCurrency) {
@@ -318,14 +362,14 @@ const formatBaseCurrency = (income: Income) => {
     return formatCurrency(income.amount, targetCurrency)
   }
   
-  // Use converted amount from bulk conversion
-  const convertedAmount = convertedAmounts.value?.[income.id]
+  // Use converted amount from display conversion (for selected display currency)
+  const convertedAmount = displayConvertedAmounts.value?.[income.id]
   if (convertedAmount !== undefined && convertedAmount !== null) {
     return formatCurrency(convertedAmount, targetCurrency)
   }
   
   // If conversion is still loading, show loading indicator or original amount
-  if (isLoadingConverted.value || isFetchingConverted.value) {
+  if (isLoadingDisplayConverted.value || isFetchingDisplayConverted.value) {
     // Show original amount while conversion is loading
     return formatCurrency(income.amount, income.currency)
   }
