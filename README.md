@@ -332,7 +332,7 @@ my-budget-vue/
 
 ## 👤 Author
 
-**Your Name**
+**Marina Sirenko**
 - GitHub: [MarinaSirenko-git](https://github.com/MarinaSirenko-git)
 
 ## 🙏 Acknowledgments
