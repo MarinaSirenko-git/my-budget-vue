@@ -54,7 +54,7 @@ export const INCOME_CATEGORIES: IncomeCategoryData[] = [
   {
     id: 'digital-product-sales',
     value: 'digital-product-sales',
-    labels: { en: 'Digital Product Sales', ru: 'Цифровых продуктов' },
+    labels: { en: 'Digital Product Sales', ru: 'Цифровые продукты' },
     isCustom: false,
   },
   {

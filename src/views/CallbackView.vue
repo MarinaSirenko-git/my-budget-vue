@@ -47,7 +47,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 import i18next from 'i18next'
 import { supabase } from '@/composables/useSupabase'
@@ -62,6 +62,7 @@ const { language: profileLanguage } = useUserProfile()
 const queryClient = useQueryClient()
 
 const router = useRouter()
+const route = useRoute()
 const statusMessage = ref(t('redirecting_message'))
 const hasError = ref(false)
 const NEW_USER_WINDOW_MS = 5 * 60 * 1000
@@ -124,7 +125,15 @@ const proceedWithScenario = async () => {
     })
   }
 
-  const target = `/${cachedScenario.value.slug}/income`
+  // Проверяем, есть ли redirect параметр из query string
+  const redirectPath = route.query.redirect as string | undefined
+  
+  // Если есть redirect и он валидный (начинается с /), используем его
+  // Иначе используем дефолтный путь к первому сценарию
+  const target = redirectPath && redirectPath.startsWith('/') 
+    ? redirectPath 
+    : `/${cachedScenario.value.slug}/income`
+  
   await router.replace(target)
 }
 
