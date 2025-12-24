@@ -126,11 +126,32 @@ const proceedWithScenario = async () => {
   }
 
   // Проверяем, есть ли redirect параметр из query string
-  const redirectPath = route.query.redirect as string | undefined
+  // Vue Router может вернуть string, string[] или undefined
+  const redirectQuery = route.query.redirect
+  const redirectPath = Array.isArray(redirectQuery) 
+    ? redirectQuery[0] // Если массив, берем первый элемент
+    : (redirectQuery as string | undefined)
   
-  // Если есть redirect и он валидный (начинается с /), используем его
+  // Валидация redirect пути для предотвращения open redirect уязвимости
+  const isValidInternalPath = (path: string): boolean => {
+    // Должен начинаться с / и быть относительным путем
+    if (!path.startsWith('/')) return false
+    
+    // Проверяем, что нет протокол-относительных URL (//evil.com)
+    if (path.startsWith('//')) return false
+    
+    // Проверяем, что нет протоколов (http://, https://, javascript:, data: и т.д.)
+    if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(path)) return false
+    
+    // Проверяем, что путь не содержит опасные символы
+    if (/[<>"']/.test(path)) return false
+    
+    return true
+  }
+  
+  // Если есть redirect и он валидный (безопасный внутренний путь), используем его
   // Иначе используем дефолтный путь к первому сценарию
-  const target = redirectPath && redirectPath.startsWith('/') 
+  const target = redirectPath && typeof redirectPath === 'string' && isValidInternalPath(redirectPath)
     ? redirectPath 
     : `/${cachedScenario.value.slug}/income`
   
