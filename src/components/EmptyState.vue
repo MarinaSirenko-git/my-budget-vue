@@ -1,26 +1,26 @@
 <template>
-  <div class="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8">
+  <div class="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 sm:space-y-8 px-4">
     <!-- Emojis -->
-    <div v-if="emojis && emojis.length > 0" class="text-6xl flex items-center justify-center gap-4">
+    <div v-if="emojis && emojis.length > 0" class="text-4xl sm:text-6xl flex items-center justify-center gap-4">
       <span v-for="(emoji, index) in emojis" :key="index">{{ emoji }}</span>
     </div>
 
     <!-- Title and Subtitle -->
     <div class="space-y-3 max-w-md">
-      <h1 v-if="title" class="text-2xl font-bold text-gray-900">
+      <h1 v-if="title" class="text-xl sm:text-2xl font-bold text-gray-900">
         {{ title }}
       </h1>
-      <p v-if="subtitle" class="text-md text-gray-600">
+      <p v-if="subtitle" class="text-sm sm:text-md text-gray-600">
         {{ subtitle }}
       </p>
     </div>
 
     <!-- Options Grid -->
-    <div v-if="options && options.length > 0" :class="`grid ${gridColumnsClass} gap-3 max-w-2xl`">
+    <div v-if="options && options.length > 0" :class="`grid ${gridColumnsClass} gap-3 max-w-2xl w-full`">
       <button
         v-for="option in options"
         :key="option.id"
-        class="w-full px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-colors text-sm font-medium"
+        class="w-full px-4 py-3 min-h-[44px] bg-black text-white rounded-lg hover:bg-gray-900 transition-colors text-sm font-medium"
         @click="handleOptionClick(option)"
       >
         {{ option.label }}
@@ -30,7 +30,7 @@
     <!-- Action Button -->
     <button
       v-if="actionButton"
-      class="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-900 transition-colors text-sm font-medium"
+      class="px-6 py-3 min-h-[44px] bg-black text-white rounded-lg hover:bg-gray-900 transition-colors text-sm font-medium"
       @click="handleActionClick"
     >
       {{ actionButton.label }}
@@ -74,17 +74,17 @@ const props = withDefaults(
   }
 )
 
-// Compute grid columns class for Tailwind
+// Compute grid columns class for Tailwind with responsive breakpoints
 const gridColumnsClass = computed(() => {
   const columnMap: Record<number, string> = {
     1: 'grid-cols-1',
-    2: 'grid-cols-2',
-    3: 'grid-cols-3',
-    4: 'grid-cols-4',
-    5: 'grid-cols-5',
-    6: 'grid-cols-6',
+    2: 'grid-cols-1 sm:grid-cols-2',
+    3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+    4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+    5: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-5',
+    6: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6',
   }
-  return columnMap[props.columns] || 'grid-cols-3'
+  return columnMap[props.columns] || 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
 })
 
 const emit = defineEmits<{
@@ -103,5 +103,6 @@ const handleActionClick = () => {
   emit('action-click')
 }
 </script>
+
 
 

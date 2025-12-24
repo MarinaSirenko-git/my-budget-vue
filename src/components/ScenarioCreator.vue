@@ -1,10 +1,39 @@
 <template>
-  <div>
-    <Button
-      :text="t('add_alternative_scenario')"
-      variant="primary"
-      @click="showModal = true"
-    />
+  <div class="relative">
+    <!-- Кнопка с иконкой плюса -->
+    <button
+      type="button"
+      class="w-11 h-11 min-w-[44px] min-h-[44px] bg-black text-white rounded-md hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+      :aria-label="t('add_alternative_scenario')"
+      @click="handleButtonClick"
+    >
+      <svg
+        class="w-6 h-6"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    </button>
+
+    <!-- Tooltip для мобильных устройств (показывается при клике) -->
+    <Transition name="fade">
+      <div
+        v-if="showTooltip"
+        class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50 pointer-events-none sm:hidden"
+      >
+        {{ t('add_alternative_scenario') }}
+        <!-- Стрелка вниз -->
+        <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
+          <div class="w-2 h-2 bg-gray-900 rotate-45"></div>
+        </div>
+      </div>
+    </Transition>
 
     <FormModal
       v-model="showModal"
@@ -64,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTranslation } from '@/i18n'
 import { supabase } from '@/composables/useSupabase'
@@ -89,6 +118,10 @@ const scenarioNameError = ref<string | null>(null)
 const createError = ref<string | null>(null)
 const isLoading = ref(false)
 
+// Tooltip state для мобильных
+const showTooltip = ref(false)
+let tooltipTimer: ReturnType<typeof setTimeout> | null = null
+
 const canSave = computed(() => {
   return scenarioName.value.trim().length > 0 && !isLoading.value
 })
@@ -99,8 +132,32 @@ watch(scenarioName, (newValue) => {
   }
 })
 
+const handleButtonClick = () => {
+  // Показываем tooltip при клике на мобильных устройствах
+  if (window.innerWidth < 640) {
+    showTooltip.value = true
+    // Очищаем предыдущий таймер, если он есть
+    if (tooltipTimer) {
+      clearTimeout(tooltipTimer)
+    }
+    // Автоматически скрываем через 2 секунды
+    tooltipTimer = setTimeout(() => {
+      showTooltip.value = false
+      tooltipTimer = null
+    }, 2000)
+  }
+  // Открываем модалку
+  showModal.value = true
+}
+
 watch(showModal, (isOpen) => {
   if (isOpen) {
+    // Скрываем tooltip при открытии модалки
+    showTooltip.value = false
+    if (tooltipTimer) {
+      clearTimeout(tooltipTimer)
+      tooltipTimer = null
+    }
     // Reset form when modal opens
     scenarioName.value = ''
     selectedCurrency.value = 'USD'
@@ -211,4 +268,23 @@ const handleCreateFromScratch = () => {
 const handleCloneCurrent = () => {
   createScenario(true)
 }
+
+// Очищаем таймер при размонтировании компонента
+onBeforeUnmount(() => {
+  if (tooltipTimer) {
+    clearTimeout(tooltipTimer)
+  }
+})
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

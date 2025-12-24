@@ -30,7 +30,8 @@ const emit = defineEmits<{
 }>()
 
 const buttonClasses = computed(() => {
-  const baseClasses = 'px-2 py-2 text-sm font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2'
+  // Minimum 44x44px touch target for mobile accessibility
+  const baseClasses = 'px-4 py-3 min-h-[44px] text-sm font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center'
   
   const variantClasses = {
     primary: 'bg-black text-white hover:bg-gray-900 focus:ring-black disabled:bg-gray-400 disabled:cursor-not-allowed',

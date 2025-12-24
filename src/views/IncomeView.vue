@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6">
+  <div class="p-4 sm:p-6">
     <!-- Loading State -->
     <div v-if="isDataLoading" class="flex items-center justify-center min-h-[60vh]">
       <p>{{ t('loading') }}</p>
@@ -8,9 +8,10 @@
     <!-- Incomes List (if incomes exist) -->
     <div v-else-if="incomes && incomes.length > 0" class="max-w-6xl mx-auto">
       <!-- Toolbar -->
-      <div class="flex justify-end items-center gap-4 mb-2">
+      <div class="flex justify-end items-center gap-4 mb-4 sm:mb-2">
         <Button
           variant="primary"
+          class="w-full sm:w-auto"
           @click="showModal = true"
         >
           {{ t('income_form_submit') }}
@@ -36,15 +37,15 @@
           {{ formatFrequency(row.frequency) }}
         </template>
         <template #cell-actions="{ row }">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 md:gap-1">
             <button
               type="button"
-              class="p-1 hover:bg-gray-100 rounded transition"
+              class="p-2 md:p-1 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 hover:bg-gray-100 rounded transition flex items-center justify-center"
               :aria-label="t('income_table_edit')"
               @click="handleEdit(row)"
             >
               <svg
-                class="w-4 h-4"
+                class="w-5 h-5 md:w-4 md:h-4"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -58,12 +59,12 @@
             </button>
             <button
               type="button"
-              class="p-1 hover:bg-gray-100 rounded transition"
+              class="p-2 md:p-1 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 hover:bg-gray-100 rounded transition flex items-center justify-center"
               :aria-label="t('income_table_delete')"
               @click="handleDelete(row)"
             >
               <svg
-                class="w-4 h-4"
+                class="w-5 h-5 md:w-4 md:h-4"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"

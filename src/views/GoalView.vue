@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6">
+  <div class="p-4 sm:p-6">
     <!-- Loading State -->
     <div v-if="isDataLoading" class="flex items-center justify-center min-h-[60vh]">
       <p>{{ t('loading') }}</p>
@@ -8,16 +8,17 @@
     <!-- Goals List (if goals exist) -->
     <div v-else-if="goals && goals.length > 0" class="max-w-6xl mx-auto">
       <!-- Toolbar -->
-      <div class="flex justify-end items-center gap-4 mb-2">
+      <div class="flex justify-end items-center gap-4 mb-4 sm:mb-2">
         <Button
           variant="primary"
+          class="w-full sm:w-auto"
           @click="handleAddGoal"
         >
           {{ t('goal_form_submit') }}
         </Button>
       </div>
 
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <GoalCard
           v-for="goal in goals"
           :key="goal.id"

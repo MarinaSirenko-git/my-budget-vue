@@ -18,7 +18,7 @@
         :pattern="pattern"
         :aria-invalid="!!error"
         :aria-describedby="error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined"
-        class="w-full border rounded-xl px-4 py-3 text-sm transition-colors"
+        class="w-full bg-white border rounded-xl px-4 py-3 text-sm transition-colors"
         :class="[
           error
             ? 'border-red-400 focus:ring-red-200'
