@@ -1,9 +1,9 @@
 <template>
   <div class="relative">
-    <!-- Кнопка с иконкой плюса -->
+    <!-- Кнопка с иконкой плюса (мобильные и планшеты) -->
     <button
       type="button"
-      class="w-11 h-11 min-w-[44px] min-h-[44px] bg-black text-white rounded-md hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+      class="lg:hidden w-11 h-11 min-w-[44px] min-h-[44px] bg-black text-white rounded-md hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
       :aria-label="t('add_alternative_scenario')"
       @click="handleButtonClick"
     >
@@ -21,11 +21,20 @@
       </svg>
     </button>
 
+    <!-- Кнопка с текстом (ноутбуки и большие экраны) -->
+    <Button
+      variant="primary"
+      class="hidden lg:flex"
+      @click="showModal = true"
+    >
+      {{ t('add_alternative_scenario') }}
+    </Button>
+
     <!-- Tooltip для мобильных устройств (показывается при клике) -->
     <Transition name="fade">
       <div
         v-if="showTooltip"
-        class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50 pointer-events-none sm:hidden"
+        class="lg:hidden absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50 pointer-events-none"
       >
         {{ t('add_alternative_scenario') }}
         <!-- Стрелка вниз -->
@@ -133,8 +142,8 @@ watch(scenarioName, (newValue) => {
 })
 
 const handleButtonClick = () => {
-  // Показываем tooltip при клике на мобильных устройствах
-  if (window.innerWidth < 640) {
+  // Показываем tooltip при клике на мобильных и планшетах (< 1024px)
+  if (window.innerWidth < 1024) {
     showTooltip.value = true
     // Очищаем предыдущий таймер, если он есть
     if (tooltipTimer) {

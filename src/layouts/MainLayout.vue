@@ -174,7 +174,7 @@
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
-          <div class="flex-1 flex items-center justify-between lg:justify-start gap-4">
+          <div class="flex-1 flex items-center justify-between gap-4">
             <ScenarioSwitcher />
             <div class="flex items-center gap-2 sm:gap-4">
               <ScenarioCreator />
