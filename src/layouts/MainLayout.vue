@@ -18,7 +18,7 @@
     >
       <div class="h-full flex flex-col">
         <div class="px-4 py-4 border-b border-gray-200 max-h-[60px] flex items-center justify-between">
-          <h2 class="text-xl font-bold text-gray-900 font-handwriting">Mousee</h2>
+          <h2 class="text-xl font-bold text-gray-900 font-handwriting">Mousee 🖤 {{ t('budgeting') }}</h2>
           <!-- Close button for mobile -->
           <button
             type="button"
@@ -46,7 +46,7 @@
               <router-link
                 :to="`/${slug}/income`"
                 class="block px-2 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition"
-                active-class="bg-gray-100 font-semibold"
+                exact-active-class="bg-gray-100 font-semibold"
                 @click="closeDrawer"
               >
                 {{ t('nav_my_income') }}
@@ -56,7 +56,7 @@
               <router-link
                 :to="`/${slug}/savings`"
                 class="block px-2 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition"
-                active-class="bg-gray-100 font-semibold"
+                exact-active-class="bg-gray-100 font-semibold"
                 @click="closeDrawer"
               >
                 {{ t('nav_my_savings') }}
@@ -66,7 +66,7 @@
               <router-link
                 :to="`/${slug}/expense`"
                 class="block px-2 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition"
-                active-class="bg-gray-100 font-semibold"
+                exact-active-class="bg-gray-100 font-semibold"
                 @click="closeDrawer"
               >
                 {{ t('nav_my_expense') }}
@@ -76,7 +76,7 @@
               <router-link
                 :to="`/${slug}/goal`"
                 class="block px-2 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition"
-                active-class="bg-gray-100 font-semibold"
+                exact-active-class="bg-gray-100 font-semibold"
                 @click="closeDrawer"
               >
                 {{ t('nav_my_goal') }}
@@ -86,6 +86,7 @@
               <router-link
                 :to="`/${slug}/report`"
                 class="block px-2 py-2 text-gray-700 hover:bg-gray-100 transition rounded-lg"
+                exact-active-class="bg-gray-100 font-semibold"
                 @click="closeDrawer"
               >
                 {{ t('nav_download_report') }}
@@ -126,6 +127,7 @@
           <router-link
             :to="`/${slug}/idea`"
             class="block px-2 py-2 text-gray-700 hover:bg-gray-100 transition rounded-lg"
+            exact-active-class="bg-gray-100 font-semibold"
             @click="closeDrawer"
           >
             {{ t('nav_how_can_help') }}
@@ -133,6 +135,7 @@
           <router-link
             :to="`/${slug}/settings`"
             class="block px-2 py-2 text-gray-700 hover:bg-gray-100 transition rounded-lg"
+            exact-active-class="bg-gray-100 font-semibold"
             @click="closeDrawer"
           >
             {{ t('nav_settings') }}
