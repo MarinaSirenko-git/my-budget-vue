@@ -1,5 +1,5 @@
 <template>
-  <div class="p-4 border border-gray-200 rounded-lg relative">
+  <div class="p-4 border border-gray-200 rounded-lg relative bg-white">
     <!-- Header with title and monthly amount/months info -->
     <div class="flex items-center justify-between gap-2 mb-2 py-2">
       <h3 class="font-medium text-gray-900 leading-none">{{ goal.name }}</h3>
