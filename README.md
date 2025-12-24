@@ -159,6 +159,10 @@ The application supports multiple languages:
 
 Language preference is stored in user profile and persists across sessions.
 
+### 🗺️ Roadmap
+
+For planned improvements and future features, see the [Roadmap](ROADMAP.md).
+
 ---
 
 <a name="русский"></a>
@@ -315,6 +319,10 @@ my-budget-vue/
 - Русский (ru)
 
 Предпочтения языка сохраняются в профиле пользователя и сохраняются между сеансами.
+
+### 🗺️ Дорожная карта
+
+Для запланированных улучшений и будущих функций см. [Дорожную карту](ROADMAP.md).
 
 ---
 
