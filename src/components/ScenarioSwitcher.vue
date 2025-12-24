@@ -44,13 +44,37 @@
             }"
             @click="selectScenario(scenarioOption.slug)"
           >
-            <span class="text-sm text-gray-900">{{ scenarioOption.name || scenarioOption.slug }}</span>
-            <span
-              v-if="scenarioOption.slug === scenario?.slug"
-              class="text-gray-500 text-xs ml-2"
-            >
-              ✓
-            </span>
+            <span class="text-sm text-gray-900 flex-1">{{ scenarioOption.name || scenarioOption.slug }}</span>
+            <div class="flex items-center ml-2 w-6 h-6 justify-center">
+              <span
+                v-if="scenarioOption.slug === scenario?.slug"
+                class="text-gray-500 text-sm"
+              >
+                ✓
+              </span>
+              <button
+                v-else
+                type="button"
+                class="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                @click.stop="handleDeleteScenario(scenarioOption.id)"
+                title="Удалить сценарий"
+              >
+                <svg
+                  class="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+              </button>
+            </div>
           </li>
         </ul>
       </div>
@@ -68,13 +92,19 @@
 <script setup lang="ts">
 import { ref, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useCurrentScenario } from '@/composables/useCurrentScenario'
+import { useQueryClient } from '@tanstack/vue-query'
+import { useCurrentScenario, type Scenario } from '@/composables/useCurrentScenario'
+import { useCurrentUser } from '@/composables/useCurrentUser'
+import { supabase } from '@/composables/useSupabase'
 import { useTranslation } from '@/i18n'
+import { queryKeys } from '@/lib/queryKeys'
 
 const router = useRouter()
 const route = useRoute()
 const { t } = useTranslation()
 const { scenario, scenarios, isLoading } = useCurrentScenario()
+const { userId } = useCurrentUser()
+const queryClient = useQueryClient()
 
 const isOpen = ref(false)
 const rootRef = ref<HTMLElement | null>(null)
@@ -104,6 +134,33 @@ const handleClickOutside = (event: MouseEvent) => {
   const root = rootRef.value
   if (root && target && !root.contains(target)) {
     isOpen.value = false
+  }
+}
+
+const handleDeleteScenario = async (scenarioId: string) => {
+  const confirmed = confirm('Вы уверены, что хотите удалить этот сценарий?')
+  if (!confirmed) return
+
+  try {
+    const { error } = await supabase.rpc('delete_scenario', {
+      p_scenario_id: scenarioId,
+    })
+
+    if (error) throw error
+
+    // Обновить кеш
+    if (userId.value) {
+      queryClient.setQueryData<Scenario[]>(
+        queryKeys.scenarios.list(userId.value),
+        (old) => old?.filter((s) => s.id !== scenarioId) || []
+      )
+
+      // Инвалидировать детальный запрос сценария, если он был удален
+      queryClient.invalidateQueries({ queryKey: queryKeys.scenarios.all })
+    }
+  } catch (error) {
+    console.error('Failed to delete scenario:', error)
+    alert('Не удалось удалить сценарий. Попробуйте еще раз.')
   }
 }
 
