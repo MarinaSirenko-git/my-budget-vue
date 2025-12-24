@@ -83,6 +83,10 @@ export const useIncomeForm = (
     } else {
       // Set default currency from scenario when modal opens, if not already set
       setDefaultCurrency()
+      // Set default frequency to monthly when modal opens (only for new incomes, not when editing)
+      if (!editingIncomeId.value) {
+        setDefaultFrequency()
+      }
     }
   })
 

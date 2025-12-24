@@ -80,6 +80,10 @@ export const useExpenseForm = (
     } else {
       // Set default currency from scenario when modal opens, if not already set
       setDefaultCurrency()
+      // Set default frequency to monthly when modal opens (only for new expenses, not when editing)
+      if (!editingExpenseId.value) {
+        setDefaultFrequency()
+      }
     }
   })
 
