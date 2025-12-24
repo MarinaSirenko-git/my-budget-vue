@@ -177,25 +177,39 @@ export const useExpenses = (scenarioId: MaybeRefOrGetter<string | null | undefin
     }
     
     if (!baseCurrency.value) {
-      return expenses.value.reduce((sum, expense) => sum + (expense.amount || 0), 0)
+      return expenses.value.reduce((sum, expense) => {
+        let amount = expense.amount || 0
+        // If frequency is annual, divide by 12 to get monthly amount
+        if (expense.frequency === 'annual') {
+          amount = amount / 12
+        }
+        return sum + amount
+      }, 0)
     }
     
     return expenses.value.reduce((sum, expense) => {
+      let amount: number
+      
       if (expense.currency === baseCurrency.value) {
-        return sum + (expense.amount || 0)
+        amount = expense.amount || 0
+      } else {
+        const converted = convertedAmounts.value?.[expense.id]
+        if (converted != null && typeof converted === 'number') {
+          amount = converted
+        } else if (isLoadingConverted.value || isFetchingConverted.value) {
+          return sum
+        } else {
+          console.warn(`[useExpenses] No converted amount for expense ${expense.id} (${expense.currency})`)
+          return sum
+        }
       }
-
-      const converted = convertedAmounts.value?.[expense.id]
-      if (converted != null && typeof converted === 'number') {
-        return sum + converted
+      
+      // If frequency is annual, divide by 12 to get monthly amount
+      if (expense.frequency === 'annual') {
+        amount = amount / 12
       }
-
-      if (isLoadingConverted.value || isFetchingConverted.value) {
-        return sum
-      }
-
-      console.warn(`[useExpenses] No converted amount for expense ${expense.id} (${expense.currency})`)
-      return sum
+      
+      return sum + amount
     }, 0)
   })
 
