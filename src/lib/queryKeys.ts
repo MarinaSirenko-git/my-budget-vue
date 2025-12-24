@@ -28,6 +28,12 @@ export const queryKeys = {
     converted: (userId: string | null, scenarioId: string | null, currency: string | null) =>
       [...queryKeys.goals.all, 'converted', userId, scenarioId, currency] as const,
   },
+  savings: {
+    all: ['savings'] as const,
+    lists: () => [...queryKeys.savings.all, 'list'] as const,
+    list: (userId: string | null, scenarioId: string | null) =>
+      [...queryKeys.savings.lists(), userId, scenarioId] as const,
+  },
   scenarios: {
     all: ['scenarios'] as const,
     lists: () => [...queryKeys.scenarios.all, 'list'] as const,

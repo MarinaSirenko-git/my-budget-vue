@@ -6,8 +6,10 @@
           v-for="column in columns"
           :key="column.key"
           :ref="column.key === currencyColumnKey ? (el) => { if (el) currencyHeaderRef = el as HTMLElement } : undefined"
-          class="border-r border-black px-4 py-3 text-left text-sm font-medium text-black bg-white"
+          class="border-r border-black text-left font-medium text-black bg-white"
           :class="{
+            'px-4 py-3 text-sm': size === 'default',
+            'px-2 py-1 text-xs': size === 'xs',
             'border-black': column === columns[columns.length - 1],
             'relative': column.key === currencyColumnKey && showCurrencyDropdown,
           }"
@@ -26,7 +28,7 @@
                 class="flex items-center gap-1 hover:opacity-70 transition-opacity"
                 @click="toggleCurrencyDropdown"
               >
-                <span class="text-sm font-medium">{{ props.displayBaseCurrency || '—' }}</span>
+                <span class="font-medium" :class="size === 'xs' ? 'text-xs' : 'text-sm'">{{ props.displayBaseCurrency || '—' }}</span>
                 <svg
                   class="w-4 h-4 transition-transform"
                   :class="{ 'rotate-180': isCurrencyDropdownOpen }"
@@ -84,8 +86,10 @@
         <td
           v-for="column in columns"
           :key="column.key"
-          class="border-r border-black px-4 py-3 text-sm text-black bg-white"
+          class="border-r border-black text-black bg-white"
           :class="{
+            'px-4 py-3 text-sm': size === 'default',
+            'px-2 py-1 text-xs': size === 'xs',
             'border-black': column === columns[columns.length - 1],
           }"
         >
@@ -125,6 +129,7 @@ interface Props {
   columns: TableColumn[]
   data: any[]
   rowKey?: string | ((row: any) => string)
+  size?: 'default' | 'xs'
   // Currency dropdown props
   currencyColumnKey?: string
   showCurrencyDropdown?: boolean
@@ -134,6 +139,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   rowKey: 'id',
+  size: 'default',
   currencyColumnKey: undefined,
   showCurrencyDropdown: false,
   currencyOptions: () => [],

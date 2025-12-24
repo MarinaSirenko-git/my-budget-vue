@@ -13,7 +13,7 @@ import { queryKeys } from '@/lib/queryKeys'
 export const useDisplayCurrencyConversion = <T extends { id: string; amount: number; currency: string }>(
   items: MaybeRefOrGetter<T[] | undefined>,
   displayCurrency: MaybeRefOrGetter<CurrencyCode | null | undefined>,
-  queryKeyPrefix: 'incomes' | 'expenses' | 'goals'
+  queryKeyPrefix: 'incomes' | 'expenses' | 'goals' | 'savings'
 ) => {
   const { userId } = useCurrentUser()
   const { convertAmountsBulk } = useAmounts()
@@ -27,7 +27,9 @@ export const useDisplayCurrencyConversion = <T extends { id: string; amount: num
       ? queryKeys.incomes.converted(userId.value, scenarioId, currency)
       : queryKeyPrefix === 'expenses'
       ? queryKeys.expenses.converted(userId.value, scenarioId, currency)
-      : queryKeys.goals.converted(userId.value, scenarioId, currency)
+      : queryKeyPrefix === 'goals'
+      ? queryKeys.goals.converted(userId.value, scenarioId, currency)
+      : ['savings', 'converted', userId.value, scenarioId, currency] as const
     
     return [
       ...baseKey,

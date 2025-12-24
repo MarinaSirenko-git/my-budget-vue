@@ -21,6 +21,15 @@ export const getCapitalizationPeriodOptions = (locale: 'en' | 'ru' = 'ru'): Capi
   }))
 }
 
+/**
+ * Get capitalization period label by code
+ */
+export const getCapitalizationPeriodLabel = (code: CapitalizationPeriodCode | null | undefined, locale: 'en' | 'ru' = 'ru'): string => {
+  if (!code) return ''
+  return capitalizationPeriodLabelsMap[code]?.[locale] || code
+}
+
+
 
 
 
