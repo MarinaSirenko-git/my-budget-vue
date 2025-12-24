@@ -94,7 +94,7 @@ export const useIncomeForm = (
       formData.value.amount > 0 &&
       formData.value.currency !== null &&
       formData.value.frequency !== null &&
-      formData.value.paymentDay !== null
+      (formData.value.frequency === 'annual' || formData.value.paymentDay !== null)
     )
   })
 
@@ -247,7 +247,7 @@ export const useIncomeForm = (
       currency: formData.value.currency!,
       type: formData.value.categoryName.trim(),
       frequency: formData.value.frequency || 'monthly',
-      payment_day: formData.value.paymentDay!,
+      payment_day: formData.value.frequency === 'annual' ? null : formData.value.paymentDay!,
     }
 
     incomeMutation.mutate({

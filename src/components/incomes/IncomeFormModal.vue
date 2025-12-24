@@ -58,7 +58,7 @@
         </div>
 
         <!-- Payment Day -->
-        <div class="space-y-2">
+        <div v-if="formData.frequency !== 'annual'" class="space-y-2">
           <label class="block text-sm font-medium text-gray-700">
             {{ t('income_form_date_label') }}
           </label>

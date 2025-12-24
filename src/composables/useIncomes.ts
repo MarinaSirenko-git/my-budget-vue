@@ -90,25 +90,39 @@ export const useIncomes = (scenarioId: MaybeRefOrGetter<string | null | undefine
     }
     
     if (!baseCurrency.value) {
-      return incomes.value.reduce((sum, income) => sum + (income.amount || 0), 0)
+      return incomes.value.reduce((sum, income) => {
+        let amount = income.amount || 0
+        // If frequency is annual, divide by 12 to get monthly amount
+        if (income.frequency === 'annual') {
+          amount = amount / 12
+        }
+        return sum + amount
+      }, 0)
     }
     
     return incomes.value.reduce((sum, income) => {
+      let amount: number
+      
       if (income.currency === baseCurrency.value) {
-        return sum + (income.amount || 0)
+        amount = income.amount || 0
+      } else {
+        const converted = convertedAmounts.value?.[income.id]
+        if (converted != null && typeof converted === 'number') {
+          amount = converted
+        } else if (isLoadingConverted.value || isFetchingConverted.value) {
+          return sum
+        } else {
+          console.warn(`[useIncomes] No converted amount for income ${income.id} (${income.currency})`)
+          return sum
+        }
       }
-
-      const converted = convertedAmounts.value?.[income.id]
-      if (converted != null && typeof converted === 'number') {
-        return sum + converted
+      
+      // If frequency is annual, divide by 12 to get monthly amount
+      if (income.frequency === 'annual') {
+        amount = amount / 12
       }
-
-      if (isLoadingConverted.value || isFetchingConverted.value) {
-        return 0
-      }
-
-      console.warn(`[useIncomes] No converted amount for income ${income.id} (${income.currency})`)
-      return 0
+      
+      return sum + amount
     }, 0)
   })
 
