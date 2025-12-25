@@ -183,7 +183,7 @@ const scenarioId = computed(() => {
 })
 
 // Use incomes composable
-const { incomes, isLoading: isLoadingIncomes, isFetching: isFetchingIncomes, convertedAmounts, isLoadingConverted, isFetchingConverted } = useIncomes(scenarioId)
+const { incomes, isLoading: isLoadingIncomes, isFetching: isFetchingIncomes } = useIncomes(scenarioId)
 
 //
 const isDataLoading = computed(() => {
@@ -297,7 +297,7 @@ const {
 } = useDisplayCurrencyConversion(incomes, displayBaseCurrency, 'incomes')
 
 // Handle currency change event from DataTable
-const handleCurrencyChange = (currency: CurrencyCode) => {
+const handleCurrencyChange = (_currency: CurrencyCode) => {
   // The conversion will automatically trigger via reactivity of displayBaseCurrency
   // which is already updated by v-model:display-base-currency
   // This handler can be used for additional logic if needed in the future

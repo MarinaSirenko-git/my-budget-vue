@@ -223,12 +223,6 @@ const goalMutation = useMutation({
 })
 
 const isSaving = computed(() => goalMutation.isPending.value)
-// saveError is available for future error display in UI
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _saveError = computed(() => {
-  const error = goalMutation.error.value
-  return error instanceof Error ? error.message : error ? 'Failed to save goal' : null
-})
 
 // Get current locale from i18next
 const currentLocale = computed<'en' | 'ru'>(() => {
