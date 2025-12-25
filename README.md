@@ -14,6 +14,10 @@ A modern, full-featured personal budget management application built with Vue 3 
 ![Vite](https://img.shields.io/badge/Vite-5.1-646CFF?logo=vite&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-2.39-3ECF8E?logo=supabase&logoColor=white)
 
+### 🌐 Live Demo
+
+The application is available at: **https://my-budget-vue.pages.dev**
+
 ### ✨ Features
 
 #### Core Functionality
@@ -174,6 +178,10 @@ For planned improvements and future features, see the [Roadmap](ROADMAP.md).
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.4-3178C6?logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-5.1-646CFF?logo=vite&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-2.39-3ECF8E?logo=supabase&logoColor=white)
+
+### 🌐 Живая версия
+
+Приложение доступно по адресу: **https://my-budget-vue.pages.dev**
 
 ### ✨ Возможности
 
