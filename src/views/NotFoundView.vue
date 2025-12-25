@@ -27,9 +27,16 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTranslation } from '@/i18n'
+import { useHeadMeta } from '@/composables/useHeadMeta'
 
 const route = useRoute()
 const { t } = useTranslation()
+
+// Set page metadata
+useHeadMeta({
+  title: () => t('not_found_title'),
+  description: () => t('not_found_message')
+})
 
 const backHomePath = computed(() => {
   // Try to extract slug from params.pathMatch array (catch-all route)

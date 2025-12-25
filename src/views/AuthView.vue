@@ -42,8 +42,15 @@
 <script setup lang="ts">
 import { supabase } from '@/composables/useSupabase'
 import { useTranslation } from '@/i18n'
+import { useHeadMeta } from '@/composables/useHeadMeta'
 
 const { t } = useTranslation()
+
+// Set page metadata
+useHeadMeta({
+  title: () => t('envelope_method'),
+  description: () => t('welcome')
+})
 
 const handleGoogleLogin = async () => {
   try {

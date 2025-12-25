@@ -79,6 +79,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useTranslation } from '@/i18n'
+import { useHeadMeta } from '@/composables/useHeadMeta'
 import { useCurrentUser } from '@/composables/useCurrentUser'
 import { useCurrentScenario } from '@/composables/useCurrentScenario'
 import { useUserProfile } from '@/composables/useUserProfile'
@@ -91,6 +92,13 @@ import SelectInput from '@/components/forms/SelectInput.vue'
 import { useQueryClient } from '@tanstack/vue-query'
 
 const { t } = useTranslation()
+
+// Set page metadata
+useHeadMeta({
+  title: () => t('page_title_settings'),
+  description: () => t('page_description_settings')
+})
+
 const { user } = useCurrentUser()
 const { scenario } = useCurrentScenario()
 const { language: profileLanguage } = useUserProfile()

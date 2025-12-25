@@ -116,6 +116,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useTranslation } from '@/i18n'
+import { useHeadMeta } from '@/composables/useHeadMeta'
 import { currencyOptions, type CurrencyCode } from '@/constants/currency'
 import { getCapitalizationPeriodOptions, getCapitalizationPeriodLabel, type CapitalizationPeriodCode } from '@/constants/capitalizationPeriod'
 import { useCurrentScenario } from '@/composables/useCurrentScenario'
@@ -134,6 +135,13 @@ import Button from '@/components/Button.vue'
 import DataTable, { type TableColumn } from '@/components/DataTable.vue'
 
 const { t } = useTranslation()
+
+// Set page metadata
+useHeadMeta({
+  title: () => t('page_title_savings'),
+  description: () => t('page_description_savings')
+})
+
 const { scenario, isLoading: isLoadingScenario } = useCurrentScenario()
 const queryClient = useQueryClient()
 const { userId } = useCurrentUser()

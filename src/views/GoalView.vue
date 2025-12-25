@@ -56,6 +56,7 @@
 </template>
 
 <script setup lang="ts">
+import { useHeadMeta } from '@/composables/useHeadMeta'
 import { computed, ref, watch } from 'vue'
 import { useTranslation } from '@/i18n'
 import { currencyOptions, type CurrencyCode } from '@/constants/currency'
@@ -72,6 +73,13 @@ import GoalCard from '@/components/goals/GoalCard.vue'
 import Button from '@/components/Button.vue'
 
 const { t } = useTranslation()
+
+// Set page metadata
+useHeadMeta({
+  title: () => t('page_title_goal'),
+  description: () => t('page_description_goal')
+})
+
 const { scenario, isLoading: isLoadingScenario } = useCurrentScenario()
 const { userId } = useCurrentUser()
 const queryClient = useQueryClient()

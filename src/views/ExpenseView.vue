@@ -110,6 +110,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useTranslation } from '@/i18n'
+import { useHeadMeta } from '@/composables/useHeadMeta'
 import { getExpenseCategories, type ExpenseCategory } from '@/constants/financialCategories'
 import { currencyOptions, type CurrencyCode } from '@/constants/currency'
 import { getFrequencyOptions, getFrequencyLabel, type FrequencyCode } from '@/constants/frequency'
@@ -128,6 +129,13 @@ import DataTable, { type TableColumn } from '@/components/DataTable.vue'
 import ExpenseFormModal from '@/components/expenses/ExpenseFormModal.vue'
 
 const { t } = useTranslation()
+
+// Set page metadata
+useHeadMeta({
+  title: () => t('page_title_expense'),
+  description: () => t('page_description_expense')
+})
+
 const { scenario, isLoading: isLoadingScenario } = useCurrentScenario()
 const queryClient = useQueryClient()
 const { userId } = useCurrentUser()

@@ -52,12 +52,20 @@ import { useQueryClient } from '@tanstack/vue-query'
 import i18next from 'i18next'
 import { supabase } from '@/composables/useSupabase'
 import { useTranslation } from '@/i18n'
+import { useHeadMeta } from '@/composables/useHeadMeta'
 import { currencyOptions, type CurrencyCode } from '@/constants/currency'
 import FormModal from '@/components/forms/FormModal.vue'
 import SelectInput from '@/components/forms/SelectInput.vue'
 import { useUserProfile } from '@/composables/useUserProfile'
 
 const { t } = useTranslation()
+
+// Set page metadata
+useHeadMeta({
+  title: () => t('redirecting_title'),
+  description: () => t('redirecting_message')
+})
+
 const { language: profileLanguage } = useUserProfile()
 const queryClient = useQueryClient()
 

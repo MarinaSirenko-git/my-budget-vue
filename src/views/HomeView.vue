@@ -13,7 +13,14 @@
 
 <script setup lang="ts">
 import { useTranslation } from '@/i18n'
+import { useHeadMeta } from '@/composables/useHeadMeta'
 
 const { t } = useTranslation()
+
+// Set page metadata
+useHeadMeta({
+  title: () => t('page_title_dashboard'),
+  description: () => t('page_description_dashboard')
+})
 </script>
 

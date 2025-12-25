@@ -92,6 +92,13 @@
 
 <script setup lang="ts">
 import { useTranslation } from '@/i18n'
+import { useHeadMeta } from '@/composables/useHeadMeta'
 
 const { t } = useTranslation()
+
+// Set page metadata
+useHeadMeta({
+  title: () => t('page_title_idea'),
+  description: () => t('page_description_idea')
+})
 </script>

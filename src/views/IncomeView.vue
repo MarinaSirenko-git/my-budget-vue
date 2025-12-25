@@ -109,6 +109,7 @@
 </template>
 
 <script setup lang="ts">
+import { useHeadMeta } from '@/composables/useHeadMeta'
 import { computed, ref, watch } from 'vue'
 import { useTranslation } from '@/i18n'
 import { getIncomeCategories, type IncomeType } from '@/constants/financialCategories'
@@ -129,6 +130,12 @@ import Button from '@/components/Button.vue'
 import DataTable, { type TableColumn } from '@/components/DataTable.vue'
 
 const { t } = useTranslation()
+
+// Set page metadata
+useHeadMeta({
+  title: () => t('page_title_income'),
+  description: () => t('page_description_income')
+})
 
 // Vue cache client
 
