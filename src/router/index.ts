@@ -83,6 +83,47 @@ router.beforeEach(async (to, _from, next) => {
   const { data: { session } } = await supabase.auth.getSession()
   const isAuthenticated = !!session
 
+  // Специальная логика для корневого маршрута
+  if (to.path === '/') {
+    if (!isAuthenticated) {
+      next({ name: 'auth' })
+      return
+    }
+    
+    // Если авторизован, перенаправляем на первый сценарий
+    if (!session?.user?.id) {
+      next({ name: 'auth' })
+      return
+    }
+
+    try {
+      const { data: scenario, error } = await supabase
+        .from('scenarios')
+        .select('slug')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+      
+      if (error) {
+        console.error('Error fetching scenario:', error)
+        next({ name: 'auth' })
+        return
+      }
+      
+      if (scenario?.slug) {
+        next(`/${scenario.slug}/income`)
+      } else {
+        // Если сценариев нет, остаёмся на главной
+        next()
+      }
+    } catch (error) {
+      console.error('Error in navigation guard:', error)
+      next({ name: 'auth' })
+    }
+    return
+  }
+
   // Если роут требует авторизации, но пользователь не авторизован
   if (to.meta.requiresAuth && !isAuthenticated) {
     next({ name: 'auth', query: { redirect: to.fullPath } })
