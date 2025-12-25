@@ -78,7 +78,7 @@ const router = createRouter({
 })
 
 // Navigation guard для защиты роутов
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
   // Проверяем сессию пользователя
   const { data: { session } } = await supabase.auth.getSession()
   const isAuthenticated = !!session

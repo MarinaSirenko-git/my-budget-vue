@@ -5,7 +5,7 @@ import { currencyOptions, type CurrencyCode } from '@/constants/currency'
 import { useCurrentUser } from './useCurrentUser'
 import { queryKeys } from '@/lib/queryKeys'
 import type { Savings } from './useSavings'
-import type { SavingsFormData } from '@/components/savings/SavingsFormModal'
+import type { SavingsFormData } from '@/components/savings/SavingsFormModal.vue'
 
 /**
  * Composable for managing savings form state, validation, and submission
@@ -85,7 +85,7 @@ export const useSavingsForm = (
       
       // Validate date is not in future
       let isDateValid = true
-      if (hasValidDate) {
+      if (hasValidDate && formData.value.depositDate) {
         const depositDate = new Date(formData.value.depositDate)
         const today = new Date()
         today.setHours(0, 0, 0, 0)

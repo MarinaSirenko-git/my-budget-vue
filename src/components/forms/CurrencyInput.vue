@@ -7,7 +7,7 @@
       }"
     >
       <input
-        ref="inputRef"
+        ref="_inputRef"
         :id="inputId"
         type="text"
         :placeholder="placeholder"
@@ -24,6 +24,7 @@
         ]"
         @focus="emitFocus"
         @blur="emitBlur"
+        @input="handleInput"
       />
     </div>
 
@@ -84,7 +85,7 @@ const inputId = ref(`currency-input-${Math.random().toString(36).slice(2, 8)}`)
 
 // Currency input options
 const currencyOptions = {
-  currency: props.currency,
+  currency: props.currency || 'USD',
   locale: props.locale,
   valueAsInteger: false,
   precision: 2,
@@ -96,10 +97,18 @@ const currencyOptions = {
   },
 }
 
-const { inputRef, setValue, setOptions } = useCurrencyInput(currencyOptions, (value) => {
-  // Emit the number value (not formatted string)
-  emit('update:modelValue', value)
-})
+const { inputRef: _inputRef, setValue, setOptions } = useCurrencyInput(currencyOptions, false)
+
+// Handle input changes
+const handleInput = () => {
+  if (_inputRef.value) {
+    const inputElement = _inputRef.value as HTMLInputElement
+    // Get the raw value and convert to number
+    const rawValue = inputElement.value.replace(/[^\d.-]/g, '')
+    const numValue = rawValue ? parseFloat(rawValue) : null
+    emit('update:modelValue', numValue)
+  }
+}
 
 // Watch for external changes to modelValue
 watch(
@@ -120,7 +129,7 @@ watch(
   () => {
     setOptions({
       ...currencyOptions,
-      currency: props.currency,
+      currency: props.currency || 'USD',
       locale: props.locale,
       valueRange: {
         min: props.min,
