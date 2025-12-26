@@ -25,6 +25,8 @@ The application is available at: **https://my-budget-vue.pages.dev**
 - **💵 Multi-Currency Support**: Add transactions in any currency with automatic conversion to base currency
 - **📁 Scenario Planning**: Create and manage multiple budget scenarios (e.g., "Current Budget", "Future Plan", "Vacation Budget")
 - **🎯 Goal Tracking**: Set and monitor financial goals with monthly payment tracking
+- **💰 Savings Reuse**: Reuse savings across multiple goals with automatic allocation tracking
+- **✅ Goal Achievement Status**: Visual indicators for achieved goals with remaining amount display
 - **📈 Financial Reports**: Comprehensive reports showing income, expenses, savings, and goals
 - **🌍 Internationalization**: Full support for English and Russian languages
 - **🔐 Secure Authentication**: Google OAuth integration via Supabase
@@ -148,6 +150,20 @@ Users can add transactions in any currency. The application automatically conver
 #### Scenario Planning
 Create multiple budget scenarios to plan for different financial situations. Each scenario has its own set of income, expenses, savings, and goals, allowing users to compare different financial plans.
 
+#### Savings Reuse for Goals
+You can allocate your existing savings to multiple financial goals. The system automatically:
+- Tracks which savings are used for which goals
+- Adjusts monthly payment calculations based on allocated savings
+- Prevents over-allocation through database-level validation
+- Shows available amount when selecting savings for goals
+
+#### Goal Achievement Tracking
+Goals display their current progress and achievement status:
+- Visual progress bars showing completion percentage
+- Achievement badge when a goal is fully funded
+- Remaining amount display for goals in progress
+- Automatic monthly payment calculation that accounts for allocated savings
+
 ### 🔒 Security
 
 - All sensitive data is encrypted at rest
@@ -190,6 +206,8 @@ For planned improvements and future features, see the [Roadmap](ROADMAP.md).
 - **💵 Поддержка мультивалютности**: Добавление транзакций в любой валюте с автоматической конвертацией в базовую валюту
 - **📁 Планирование сценариев**: Создание и управление несколькими бюджетными сценариями (например, "Текущий бюджет", "План на будущее", "Бюджет на отпуск")
 - **🎯 Отслеживание целей**: Установка и мониторинг финансовых целей с отслеживанием ежемесячных платежей
+- **💰 Переиспользование накоплений**: Переиспользование накоплений для нескольких целей с автоматическим отслеживанием распределения
+- **✅ Статус достижения цели**: Визуальные индикаторы для достигнутых целей с отображением оставшейся суммы
 - **📈 Финансовые отчеты**: Комплексные отчеты, показывающие доходы, расходы, сбережения и цели
 - **🌍 Интернационализация**: Полная поддержка английского и русского языков
 - **🔐 Безопасная аутентификация**: Интеграция Google OAuth через Supabase
@@ -312,6 +330,20 @@ my-budget-vue/
 
 #### Планирование сценариев
 Создавайте несколько бюджетных сценариев для планирования различных финансовых ситуаций. Каждый сценарий имеет свой набор доходов, расходов, сбережений и целей, позволяя пользователям сравнивать различные финансовые планы.
+
+#### Переиспользование накоплений для целей
+Вы можете распределить существующие накопления между несколькими финансовыми целями. Система автоматически:
+- Отслеживает, какие накопления используются для каких целей
+- Корректирует расчет ежемесячных платежей с учетом распределенных накоплений
+- Предотвращает перераспределение через валидацию на уровне базы данных
+- Показывает доступную сумму при выборе накоплений для целей
+
+#### Отслеживание достижения целей
+Цели отображают свой текущий прогресс и статус достижения:
+- Визуальные индикаторы прогресса, показывающие процент выполнения
+- Бейдж достижения, когда цель полностью профинансирована
+- Отображение оставшейся суммы для целей в процессе
+- Автоматический расчет ежемесячного платежа с учетом распределенных накоплений
 
 ### 🔒 Безопасность
 
