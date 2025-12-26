@@ -16,6 +16,18 @@
         size="xs"
         :show-currency-dropdown="false"
       >
+        <template #cell-name="{ row }">
+          <div class="flex items-center gap-2">
+            <span>{{ row.name }}</span>
+            <span v-if="isGoalAchieved(row)" class="text-xs text-gray-500">
+              ({{ t('goal_achieved') }})
+            </span>
+            <span v-else class="text-xs text-gray-500">
+              ({{ formatRemainingAmount(row) }})
+            </span>
+          </div>
+        </template>
+
         <template #cell-target_amount="{ row }">
           {{ formatCurrency(row.target_amount, row.currency) }}
         </template>
@@ -43,7 +55,8 @@ import i18next from 'i18next'
 import DataTable, { type TableColumn } from '@/components/DataTable.vue'
 import { useTranslation } from '@/i18n'
 import { useCurrentScenario } from '@/composables/useCurrentScenario'
-import { useGoals } from '@/composables/useGoals'
+import { useGoals, type Goal } from '@/composables/useGoals'
+import { useGoalSavingsAllocations } from '@/composables/useGoalSavingsAllocations'
 
 const { t } = useTranslation()
 const localeString = computed(() => i18next.language || 'en-US')
@@ -57,6 +70,9 @@ const {
   isFetching: isGoalsFetching,
   monthlyPayments,
 } = useGoals(scenarioId)
+
+// Load allocations to calculate current amount and remaining amount
+const { allocations: allAllocations } = useGoalSavingsAllocations(scenarioId)
 
 const displayGoals = computed(() => goals.value ?? [])
 
@@ -113,12 +129,75 @@ const formatDate = (dateString: string | null) => {
   }
 }
 
-const formatMonthlyPayment = (goal: import('@/composables/useGoals').Goal) => {
+const formatMonthlyPayment = (goal: Goal) => {
   const monthlyPayment = monthlyPayments.value?.[goal.id]
   if (monthlyPayment === undefined || monthlyPayment === null || monthlyPayment === 0) {
     return '—'
   }
   return formatCurrency(monthlyPayment, goal.currency)
+}
+
+/**
+ * Get total allocations amount for a goal (in goal currency)
+ */
+const getGoalAllocationsTotal = (goalId: string, goalCurrency: string): number => {
+  if (!allAllocations.value || allAllocations.value.length === 0) {
+    return 0
+  }
+
+  return allAllocations.value
+    .filter(a => a.goal_id === goalId && a.currency === goalCurrency)
+    .reduce((sum, a) => sum + a.amount_used, 0)
+}
+
+/**
+ * Calculate current amount for a goal (similar to GoalCard logic)
+ */
+const calculateCurrentAmount = (goal: Goal): number => {
+  if (!goal.target_date) {
+    const baseAmount = goal.current_amount || 0
+    return baseAmount + getGoalAllocationsTotal(goal.id, goal.currency)
+  }
+
+  // Calculate months from creation to today
+  const createdDate = new Date(goal.created_at)
+  const today = new Date()
+  createdDate.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0)
+  
+  const yearsDiff = today.getFullYear() - createdDate.getFullYear()
+  const monthsDiff = today.getMonth() - createdDate.getMonth()
+  const monthsPassed = Math.max(0, yearsDiff * 12 + monthsDiff)
+
+  const monthlyPayment = monthlyPayments.value?.[goal.id] || 0
+  const paymentsMade = monthsPassed >= 1 ? monthsPassed : 0
+  const calculatedAmount = monthlyPayment * paymentsMade
+  const allocationsTotal = getGoalAllocationsTotal(goal.id, goal.currency)
+  const totalAmount = calculatedAmount + allocationsTotal
+
+  return Math.min(totalAmount, goal.target_amount)
+}
+
+/**
+ * Check if goal is achieved
+ */
+const isGoalAchieved = (goal: Goal): boolean => {
+  const currentAmount = calculateCurrentAmount(goal)
+  return currentAmount >= goal.target_amount
+}
+
+/**
+ * Format remaining amount for a goal
+ */
+const formatRemainingAmount = (goal: Goal): string => {
+  const currentAmount = calculateCurrentAmount(goal)
+  const remaining = Math.max(0, goal.target_amount - currentAmount)
+  
+  if (remaining === 0) {
+    return t('goal_achieved')
+  }
+  
+  return `${t('goal_remaining')}: ${formatCurrency(remaining, goal.currency)}`
 }
 
 </script>

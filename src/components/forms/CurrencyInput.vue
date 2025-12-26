@@ -61,6 +61,7 @@ const props = withDefaults(
     currency?: string
     locale?: string
     min?: number
+    max?: number
   }>(),
   {
     placeholder: '',
@@ -71,6 +72,7 @@ const props = withDefaults(
     currency: undefined,
     locale: undefined,
     min: 0.01,
+    max: undefined,
   }
 )
 
@@ -93,7 +95,7 @@ const currencyOptions = {
   autoDecimalMode: true,
   valueRange: {
     min: props.min,
-    max: undefined,
+    max: props.max,
   },
 }
 
@@ -125,7 +127,7 @@ watch(
 
 // Watch for options changes
 watch(
-  () => [props.currency, props.locale, props.min],
+  () => [props.currency, props.locale, props.min, props.max],
   () => {
     setOptions({
       ...currencyOptions,
@@ -133,7 +135,7 @@ watch(
       locale: props.locale,
       valueRange: {
         min: props.min,
-        max: undefined,
+        max: props.max,
       },
     })
   }

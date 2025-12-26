@@ -46,6 +46,7 @@
       :is-saving="isSaving"
       :can-submit="canSubmit"
       :is-editing="!!editingGoalId"
+      :goal-id="editingGoalId"
       :locale-string="localeString"
       :currency-options="currencyOptions"
       :min-date="minDate"
@@ -105,10 +106,20 @@ const isDataLoading = computed(() => {
 
 // Mutation for creating/updating goals
 const goalMutation = useMutation({
-  mutationFn: async ({ goalData, goalId }: { goalData: any; goalId: string | null }) => {
+  mutationFn: async ({ 
+    goalData, 
+    goalId, 
+    savingsAllocations 
+  }: { 
+    goalData: any
+    goalId: string | null
+    savingsAllocations: Array<{ savings_id: string; amount_used: number; currency: string }>
+  }) => {
     if (!scenario.value?.id || !userId.value) {
       throw new Error('Scenario ID and User ID are required')
     }
+
+    let savedGoal
 
     if (goalId) {
       // Update existing goal
@@ -122,7 +133,7 @@ const goalMutation = useMutation({
       if (error) {
         throw error
       }
-      return data
+      savedGoal = data
     } else {
       // Create new goal
       const { data, error } = await supabase
@@ -138,8 +149,91 @@ const goalMutation = useMutation({
       if (error) {
         throw error
       }
-      return data
+      savedGoal = data
     }
+
+    // Handle savings allocations using UPSERT approach
+    if (goalId) {
+      // For UPDATE: use smart upsert + delete approach
+      if (savingsAllocations && Array.isArray(savingsAllocations) && savingsAllocations.length > 0) {
+        // Prepare allocations for upsert
+        const allocationsToUpsert = savingsAllocations.map(allocation => ({
+          goal_id: savedGoal.id,
+          savings_id: allocation.savings_id,
+          amount_used: allocation.amount_used,
+          currency: allocation.currency,
+        }))
+
+        // Upsert: update existing or insert new allocations
+        const { error: upsertError } = await supabase
+          .from('goal_savings_allocations')
+          .upsert(allocationsToUpsert, {
+            onConflict: 'goal_id,savings_id' // Use unique constraint
+          })
+
+        if (upsertError) {
+          throw upsertError
+        }
+
+        // Delete allocations that are no longer in the new data
+        const { data: existingAllocations, error: fetchError } = await supabase
+          .from('goal_savings_allocations')
+          .select('savings_id')
+          .eq('goal_id', savedGoal.id)
+
+        if (fetchError) {
+          throw fetchError
+        }
+
+        const existingSavingsIds = new Set(existingAllocations?.map(a => a.savings_id) || [])
+        const newSavingsIds = new Set(savingsAllocations.map(a => a.savings_id))
+
+        // Find allocations to delete (exist in DB but not in new data)
+        const toDelete = Array.from(existingSavingsIds).filter(id => !newSavingsIds.has(id))
+        
+        if (toDelete.length > 0) {
+          const { error: deleteError } = await supabase
+            .from('goal_savings_allocations')
+            .delete()
+            .eq('goal_id', savedGoal.id)
+            .in('savings_id', toDelete)
+
+          if (deleteError) {
+            throw deleteError
+          }
+        }
+      } else {
+        // If no allocations provided, delete all existing ones
+        const { error: deleteError } = await supabase
+          .from('goal_savings_allocations')
+          .delete()
+          .eq('goal_id', savedGoal.id)
+
+        if (deleteError) {
+          throw deleteError
+        }
+      }
+    } else {
+      // For INSERT: just insert new allocations if any
+      if (savingsAllocations && Array.isArray(savingsAllocations) && savingsAllocations.length > 0) {
+        const allocationsToInsert = savingsAllocations.map(allocation => ({
+          goal_id: savedGoal.id,
+          savings_id: allocation.savings_id,
+          amount_used: allocation.amount_used,
+          currency: allocation.currency,
+        }))
+
+        const { error: insertError } = await supabase
+          .from('goal_savings_allocations')
+          .insert(allocationsToInsert)
+
+        if (insertError) {
+          throw insertError
+        }
+      }
+    }
+
+    return savedGoal
   },
   onMutate: async (variables) => {
     const currentUserId = userId.value
@@ -220,6 +314,15 @@ const goalMutation = useMutation({
 
     // Invalidate and refetch related queries for immediate update
     queryClient.invalidateQueries({ queryKey: queryKeys.goals.all })
+    // Invalidate allocations cache to reflect changes
+    queryClient.invalidateQueries({ 
+      queryKey: queryKeys.goals.allocations(currentUserId, currentScenarioId)
+    })
+    // Refetch allocations for active queries (e.g., if modal is open)
+    queryClient.refetchQueries({ 
+      queryKey: queryKeys.goals.allocations(currentUserId, currentScenarioId),
+      type: 'active'  // Only refetch if query is currently active (modal is open)
+    })
     // Refetch converted amounts immediately to update the UI
     queryClient.refetchQueries({ 
       queryKey: queryKeys.goals.converted(currentUserId, currentScenarioId, null),
@@ -259,6 +362,8 @@ const formData = ref<GoalFormData>({
   targetAmount: null,
   currency: null,
   targetDate: null,
+  useSavings: false,
+  selectedSavings: [],
 })
 
 // Reset form when modal closes
@@ -269,6 +374,8 @@ watch(showModal, (isOpen) => {
       targetAmount: null,
       currency: null,
       targetDate: null,
+      useSavings: false,
+      selectedSavings: [],
     }
     editingGoalId.value = null
   } else {
@@ -317,11 +424,14 @@ const handleSubmit = async () => {
     return
   }
 
+  // Prepare goal data without selected_savings
   const goalData: any = {
     name: formData.value.name.trim(),
     target_amount: formData.value.targetAmount!,
     target_date: formData.value.targetDate!,
     currency: formData.value.currency!,
+    use_savings: formData.value.useSavings,
+    // selected_savings removed - will be saved to goal_savings_allocations table
   }
 
   // Only set current_amount to 0 for new goals
@@ -329,20 +439,67 @@ const handleSubmit = async () => {
     goalData.current_amount = 0
   }
 
+  // Prepare savings allocations
+  // Only save allocations if useSavings is true AND there are valid savings selected
+  const savingsAllocations = formData.value.useSavings && 
+                             formData.value.selectedSavings && 
+                             Array.isArray(formData.value.selectedSavings) &&
+                             formData.value.selectedSavings.length > 0
+    ? formData.value.selectedSavings
+        .filter(s => s && s.savingsId && s.amount !== null && s.amount > 0)
+        .map(s => ({
+          savings_id: s.savingsId!,
+          amount_used: s.amount!,
+          currency: formData.value.currency!, // Use goal currency for allocation
+        }))
+    : []
+
   goalMutation.mutate({
     goalData,
     goalId: editingGoalId.value,
+    savingsAllocations,
   })
 }
 
 // Handle edit goal
-const handleEdit = (goal: Goal) => {
+const handleEdit = async (goal: Goal) => {
   editingGoalId.value = goal.id
+  
+  // Load goal with allocations using RPC function (one query instead of two)
+  const { data, error } = await supabase.rpc('get_goal_with_allocations', {
+    goal_id_param: goal.id
+  })
+
+  if (error) {
+    console.error('Failed to load goal with allocations:', error)
+    // Fallback to basic goal data from cache
+    formData.value = {
+      name: goal.name,
+      targetAmount: goal.target_amount,
+      currency: goal.currency as CurrencyCode,
+      targetDate: goal.target_date || null,
+      useSavings: (goal as any).use_savings || false,
+      selectedSavings: [],
+    }
+    showModal.value = true
+    return
+  }
+
+  const goalData = data?.goal || goal
+  const allocations = data?.allocations || []
+
   formData.value = {
-    name: goal.name,
-    targetAmount: goal.target_amount,
-    currency: goal.currency as CurrencyCode,
-    targetDate: goal.target_date || null,
+    name: goalData.name,
+    targetAmount: goalData.target_amount,
+    currency: goalData.currency as CurrencyCode,
+    targetDate: goalData.target_date || null,
+    useSavings: goalData.use_savings || false,
+    selectedSavings: Array.isArray(allocations) && allocations.length > 0
+      ? allocations.map((a: any) => ({
+          savingsId: a.savings_id || null,
+          amount: a.amount_used || null,
+        }))
+      : [],
   }
   showModal.value = true
 }
@@ -398,6 +555,15 @@ const deleteGoalMutation = useMutation({
 
     // Invalidate and refetch related queries for immediate update
     queryClient.invalidateQueries({ queryKey: queryKeys.goals.all })
+    // Invalidate allocations cache when goal is deleted
+    queryClient.invalidateQueries({ 
+      queryKey: queryKeys.goals.allocations(currentUserId, currentScenarioId)
+    })
+    // Refetch allocations for active queries (e.g., if modal is open)
+    queryClient.refetchQueries({ 
+      queryKey: queryKeys.goals.allocations(currentUserId, currentScenarioId),
+      type: 'active'  // Only refetch if query is currently active (modal is open)
+    })
     queryClient.refetchQueries({ 
       queryKey: queryKeys.goals.converted(currentUserId, currentScenarioId, null),
       type: 'active'

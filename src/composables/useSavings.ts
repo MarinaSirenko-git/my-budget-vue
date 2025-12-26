@@ -8,6 +8,7 @@ import type { CurrencyCode } from '@/constants/currency'
 import { calculateInterestSinceDate } from '@/utils/compoundInterest'
 import type { CapitalizationPeriodCode } from '@/constants/capitalizationPeriod'
 import { queryKeys } from '@/lib/queryKeys'
+import { currencySymbols } from '@/constants/currency'
 
 export interface Savings {
   id: string
@@ -284,6 +285,39 @@ export const useSavings = (scenarioId: MaybeRefOrGetter<string | null | undefine
     }, 0)
   })
 
+  /**
+   * Get savings options for SelectInput
+   * Returns array of options with id (saving id) and title (comment + amount)
+   */
+  const getSavingsOptions = computed(() => {
+    if (!savings.value || savings.value.length === 0) {
+      return []
+    }
+
+    return savings.value.map((saving) => {
+      // Format amount with currency
+      const formattedAmount = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: saving.currency,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(saving.amount)
+
+      // Get currency symbol
+      const currencySymbol = currencySymbols[saving.currency as keyof typeof currencySymbols] || saving.currency
+
+      // Combine comment, amount and currency symbol
+      const title = saving.comment
+        ? `${saving.comment} - ${formattedAmount} ${currencySymbol}`
+        : `${formattedAmount} ${currencySymbol}`
+
+      return {
+        value: saving.id, // For SelectInput compatibility
+        label: title, // For SelectInput compatibility
+      }
+    })
+  })
+
   return {
     savings,
     isLoading,
@@ -296,6 +330,7 @@ export const useSavings = (scenarioId: MaybeRefOrGetter<string | null | undefine
     convertedAmounts,
     isLoadingConverted,
     isFetchingConverted,
+    getSavingsOptions,
   }
 }
 
