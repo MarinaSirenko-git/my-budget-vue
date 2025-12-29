@@ -4,6 +4,7 @@ import { supabase } from './useSupabase'
 import { useCurrentUser } from './useCurrentUser'
 import { useCurrentScenario } from './useCurrentScenario'
 import { useAmounts } from './useAmounts'
+import { useGoalSavingsAllocations } from './useGoalSavingsAllocations'
 import type { CurrencyCode } from '@/constants/currency'
 import { queryKeys } from '@/lib/queryKeys'
 
@@ -205,7 +206,11 @@ export const useGoals = (scenarioId: MaybeRefOrGetter<string | null | undefined>
     return goals.value.reduce((sum, goal) => sum + (goal.current_amount || 0), 0)
   })
 
+  // Load allocations to account for them in monthly payment calculation
+  const { allocations: allAllocations } = useGoalSavingsAllocations(scenarioId)
+
   // Calculate monthly payments for each goal
+  // Takes into account savings allocations - reduces target amount by allocations
   const monthlyPayments = computed(() => {
     if (!goals.value || goals.value.length === 0) return {}
     
@@ -229,8 +234,18 @@ export const useGoals = (scenarioId: MaybeRefOrGetter<string | null | undefined>
       const monthsDiff = targetDate.getMonth() - createdDate.getMonth()
       const totalMonths = Math.max(1, yearsDiff * 12 + monthsDiff)
       
+      // Get total allocations for this goal (in goal currency)
+      const allocationsTotal = allAllocations.value
+        ? allAllocations.value
+            .filter(a => a.goal_id === goal.id && a.currency === goal.currency)
+            .reduce((sum, a) => sum + a.amount_used, 0)
+        : 0
+      
+      // Calculate remaining amount to save (target - allocations)
+      const remainingAmount = Math.max(0, goal.target_amount - allocationsTotal)
+      
       // Calculate monthly payment (round up to nearest cent)
-      const monthly = goal.target_amount / totalMonths
+      const monthly = remainingAmount / totalMonths
       payments[goal.id] = Math.ceil(monthly * 100) / 100
     })
     

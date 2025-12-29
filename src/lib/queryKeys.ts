@@ -27,6 +27,8 @@ export const queryKeys = {
       [...queryKeys.goals.lists(), userId, scenarioId] as const,
     converted: (userId: string | null, scenarioId: string | null, currency: string | null) =>
       [...queryKeys.goals.all, 'converted', userId, scenarioId, currency] as const,
+    allocations: (userId: string | null, scenarioId: string | null) =>
+      [...queryKeys.goals.all, 'allocations', userId, scenarioId] as const,
   },
   savings: {
     all: ['savings'] as const,

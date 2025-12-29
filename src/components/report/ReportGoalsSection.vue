@@ -56,7 +56,7 @@ import DataTable, { type TableColumn } from '@/components/DataTable.vue'
 import { useTranslation } from '@/i18n'
 import { useCurrentScenario } from '@/composables/useCurrentScenario'
 import { useGoals, type Goal } from '@/composables/useGoals'
-import { useGoalSavingsAllocations } from '@/composables/useGoalSavingsAllocations'
+import { useGoalSavingsAllocations, type GoalSavingsAllocation } from '@/composables/useGoalSavingsAllocations'
 
 const { t } = useTranslation()
 const localeString = computed(() => i18next.language || 'en-US')
@@ -146,8 +146,8 @@ const getGoalAllocationsTotal = (goalId: string, goalCurrency: string): number =
   }
 
   return allAllocations.value
-    .filter(a => a.goal_id === goalId && a.currency === goalCurrency)
-    .reduce((sum, a) => sum + a.amount_used, 0)
+    .filter((a: GoalSavingsAllocation) => a.goal_id === goalId && a.currency === goalCurrency)
+    .reduce((sum: number, a: GoalSavingsAllocation) => sum + a.amount_used, 0)
 }
 
 /**
