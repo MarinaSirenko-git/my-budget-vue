@@ -334,3 +334,4 @@ const totalBaseCurrencyFormatted = computed(() => {
 })
 </script>
 
+

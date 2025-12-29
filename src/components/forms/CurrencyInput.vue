@@ -10,6 +10,7 @@
         ref="_inputRef"
         :id="inputId"
         type="text"
+        inputmode="decimal"
         :placeholder="placeholder"
         :disabled="disabled"
         :required="required"
@@ -23,7 +24,7 @@
           'focus:outline-none focus:ring-2',
         ]"
         @focus="emitFocus"
-        @blur="emitBlur"
+        @blur="handleBlur"
         @input="handleInput"
       />
     </div>
@@ -47,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, nextTick } from 'vue'
 import { useCurrencyInput } from 'vue-currency-input'
 
 const props = withDefaults(
@@ -92,7 +93,7 @@ const currencyOptions = {
   valueAsInteger: false,
   precision: 2,
   distractionFree: false,
-  autoDecimalMode: true,
+  autoDecimalMode: false, // Отключаем автоматическое добавление десятичных разрядов для предотвращения проблем на Android
   valueRange: {
     min: props.min,
     max: props.max,
@@ -101,14 +102,58 @@ const currencyOptions = {
 
 const { inputRef: _inputRef, setValue, setOptions } = useCurrencyInput(currencyOptions, false)
 
+// Флаг для предотвращения циклических обновлений
+let isUpdating = false
+let lastEmittedValue: number | null = null
+
 // Handle input changes
-const handleInput = () => {
-  if (_inputRef.value) {
+const handleInput = async () => {
+  if (isUpdating || !_inputRef.value) return
+  
+  isUpdating = true
+  
+  try {
+    // Даем библиотеке время на форматирование
+    await nextTick()
+    
     const inputElement = _inputRef.value as HTMLInputElement
-    // Get the raw value and convert to number
-    const rawValue = inputElement.value.replace(/[^\d.-]/g, '')
-    const numValue = rawValue ? parseFloat(rawValue) : null
-    emit('update:modelValue', numValue)
+    const rawValue = inputElement.value
+    
+    // Определяем десятичный разделитель в зависимости от локали
+    const decimalSeparator = props.locale?.includes('ru') || props.locale?.includes('RU') ? ',' : '.'
+    const thousandSeparator = decimalSeparator === ',' ? '.' : ','
+    
+    // Удаляем все символы кроме цифр и десятичного разделителя
+    let cleanedValue = rawValue
+      .replace(new RegExp(`[^\\d${decimalSeparator === ',' ? ',' : '.'}]`, 'g'), '')
+      .replace(new RegExp(`\\${thousandSeparator}`, 'g'), '')
+    
+    // Заменяем локальный десятичный разделитель на точку для parseFloat
+    if (decimalSeparator === ',') {
+      cleanedValue = cleanedValue.replace(',', '.')
+    }
+    
+    // Обрабатываем пустое значение или только разделитель
+    if (cleanedValue === '' || cleanedValue === '.') {
+      if (lastEmittedValue !== null) {
+        lastEmittedValue = null
+        emit('update:modelValue', null)
+      }
+      return
+    }
+    
+    const numValue = parseFloat(cleanedValue)
+    
+    // Проверяем, что значение валидно и изменилось
+    if (!isNaN(numValue) && numValue !== lastEmittedValue) {
+      lastEmittedValue = numValue
+      emit('update:modelValue', numValue)
+    }
+  } finally {
+    // Используем setTimeout для сброса флага после завершения всех обновлений
+    setTimeout(() => {
+      isUpdating = false
+    }, 0)
   }
 }
 
@@ -116,9 +161,13 @@ const handleInput = () => {
 watch(
   () => props.modelValue,
   (newValue) => {
+    if (isUpdating) return
+    
     if (newValue !== null && newValue !== undefined) {
+      lastEmittedValue = newValue
       setValue(newValue)
     } else if (newValue === null) {
+      lastEmittedValue = null
       setValue(null)
     }
   },
@@ -145,12 +194,28 @@ const emitFocus = (event: FocusEvent) => {
   emit('focus', event)
 }
 
-const emitBlur = (event: FocusEvent) => {
+const handleBlur = (event: FocusEvent) => {
+  // При потере фокуса финализируем значение
+  if (_inputRef.value) {
+    const inputElement = _inputRef.value as HTMLInputElement
+    const rawValue = inputElement.value.trim()
+    
+    if (rawValue === '') {
+      if (lastEmittedValue !== null) {
+        lastEmittedValue = null
+        emit('update:modelValue', null)
+      }
+    } else {
+      handleInput()
+    }
+  }
+  
   emit('blur', event)
 }
 
 onMounted(() => {
   if (props.modelValue !== null && props.modelValue !== undefined) {
+    lastEmittedValue = props.modelValue
     setValue(props.modelValue)
   }
 })

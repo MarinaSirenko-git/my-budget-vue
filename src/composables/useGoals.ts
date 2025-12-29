@@ -4,7 +4,6 @@ import { supabase } from './useSupabase'
 import { useCurrentUser } from './useCurrentUser'
 import { useCurrentScenario } from './useCurrentScenario'
 import { useAmounts } from './useAmounts'
-import { useGoalSavingsAllocations } from './useGoalSavingsAllocations'
 import type { CurrencyCode } from '@/constants/currency'
 import { queryKeys } from '@/lib/queryKeys'
 
@@ -29,9 +28,6 @@ export const useGoals = (scenarioId: MaybeRefOrGetter<string | null | undefined>
   const queryClient = useQueryClient()
   const { scenario } = useCurrentScenario()
   const { convertAmountsBulk } = useAmounts()
-  
-  // Load goal savings allocations to account for them in monthly payment calculations
-  const { allocations: allAllocations } = useGoalSavingsAllocations(scenarioId)
 
   const queryKey = computed(() => {
     return queryKeys.goals.list(userId.value, toValue(scenarioId) ?? null)
@@ -209,24 +205,7 @@ export const useGoals = (scenarioId: MaybeRefOrGetter<string | null | undefined>
     return goals.value.reduce((sum, goal) => sum + (goal.current_amount || 0), 0)
   })
 
-  /**
-   * Get total allocations amount for a goal (in goal currency)
-   * Allocations are stored in goal currency, so we can sum them directly
-   */
-  const getGoalAllocationsTotal = (goalId: string, goalCurrency: string): number => {
-    if (!allAllocations.value || allAllocations.value.length === 0) {
-      return 0
-    }
-
-    // Sum all allocations for this goal in the same currency as the goal
-    // Note: allocations.currency is the goal currency (set when saving)
-    return allAllocations.value
-      .filter(a => a.goal_id === goalId && a.currency === goalCurrency)
-      .reduce((sum, a) => sum + a.amount_used, 0)
-  }
-
   // Calculate monthly payments for each goal
-  // Takes into account savings allocations - reduces target amount by allocations
   const monthlyPayments = computed(() => {
     if (!goals.value || goals.value.length === 0) return {}
     
@@ -250,14 +229,8 @@ export const useGoals = (scenarioId: MaybeRefOrGetter<string | null | undefined>
       const monthsDiff = targetDate.getMonth() - createdDate.getMonth()
       const totalMonths = Math.max(1, yearsDiff * 12 + monthsDiff)
       
-      // Get total allocations for this goal (already in goal currency)
-      const allocationsTotal = getGoalAllocationsTotal(goal.id, goal.currency)
-      
-      // Calculate remaining amount to save (target - allocations)
-      const remainingAmount = Math.max(0, goal.target_amount - allocationsTotal)
-      
-      // Calculate monthly payment based on remaining amount (round up to nearest cent)
-      const monthly = remainingAmount / totalMonths
+      // Calculate monthly payment (round up to nearest cent)
+      const monthly = goal.target_amount / totalMonths
       payments[goal.id] = Math.ceil(monthly * 100) / 100
     })
     
@@ -266,12 +239,11 @@ export const useGoals = (scenarioId: MaybeRefOrGetter<string | null | undefined>
 
   // Query for converted monthly payments in base currency
   const convertedMonthlyPaymentsQueryKey = computed(() => {
-    // Include goals length and allocations length to trigger recalculation when goals or allocations change
+    // Include goals length to trigger recalculation when goals change
     return [
       ...queryKeys.goals.converted(userId.value, toValue(scenarioId) ?? null, baseCurrency.value ?? null),
       'monthly-payments',
       goals.value?.length ?? 0,
-      allAllocations.value?.length ?? 0, // Include allocations to trigger recalculation
     ]
   })
 
