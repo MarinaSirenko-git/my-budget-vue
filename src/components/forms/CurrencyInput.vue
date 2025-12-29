@@ -92,65 +92,73 @@ const currencyOptions = {
   locale: props.locale,
   valueAsInteger: false,
   precision: 2,
-  distractionFree: false,
-  autoDecimalMode: false, // Отключаем автоматическое добавление десятичных разрядов для предотвращения проблем на Android
+  distractionFree: true, // Enable distraction-free mode to prevent automatic formatting during input
+  autoDecimalMode: false, // Disable automatic decimal places addition to prevent issues on Android
   valueRange: {
     min: props.min,
     max: props.max,
   },
 }
 
+// Use the library only for formatting on blur, not for managing input
 const { inputRef: _inputRef, setValue, setOptions } = useCurrencyInput(currencyOptions, false)
 
-// Флаг для предотвращения циклических обновлений
+// Flag to prevent circular updates
 let isUpdating = false
 let lastEmittedValue: number | null = null
+let isFocused = false
 
 // Handle input changes
 const handleInput = async () => {
-  if (isUpdating || !_inputRef.value) return
+  if (isUpdating || !_inputRef.value || !isFocused) return
   
   isUpdating = true
   
   try {
-    // Даем библиотеке время на форматирование
+    // During input, don't let the library format the value
+    // Read the value directly from input and parse it manually
     await nextTick()
     
     const inputElement = _inputRef.value as HTMLInputElement
-    const rawValue = inputElement.value
+    let rawValue = inputElement.value
     
-    // Определяем десятичный разделитель в зависимости от локали
+    // Determine decimal separator based on locale
     const decimalSeparator = props.locale?.includes('ru') || props.locale?.includes('RU') ? ',' : '.'
     const thousandSeparator = decimalSeparator === ',' ? '.' : ','
     
-    // Удаляем все символы кроме цифр и десятичного разделителя
+    // Remove all characters except digits and decimal separator
     let cleanedValue = rawValue
       .replace(new RegExp(`[^\\d${decimalSeparator === ',' ? ',' : '.'}]`, 'g'), '')
       .replace(new RegExp(`\\${thousandSeparator}`, 'g'), '')
     
-    // Заменяем локальный десятичный разделитель на точку для parseFloat
+    // Replace locale decimal separator with dot for parseFloat
     if (decimalSeparator === ',') {
       cleanedValue = cleanedValue.replace(',', '.')
     }
     
-    // Обрабатываем пустое значение или только разделитель
+    // Handle empty value or separator only
     if (cleanedValue === '' || cleanedValue === '.') {
       if (lastEmittedValue !== null) {
         lastEmittedValue = null
         emit('update:modelValue', null)
       }
+      // During input, don't format value through the library
       return
     }
     
     const numValue = parseFloat(cleanedValue)
     
-    // Проверяем, что значение валидно и изменилось
+    // Check that the value is valid and has changed
     if (!isNaN(numValue) && numValue !== lastEmittedValue) {
       lastEmittedValue = numValue
       emit('update:modelValue', numValue)
+      
+      // During input, do NOT call setValue to prevent the library from formatting the value
+      // This prevents automatic addition of "00" on mobile devices
+      // The value remains as is in the input, formatting will be applied only on blur
     }
   } finally {
-    // Используем setTimeout для сброса флага после завершения всех обновлений
+    // Use setTimeout to reset the flag after all updates are complete
     setTimeout(() => {
       isUpdating = false
     }, 0)
@@ -161,7 +169,7 @@ const handleInput = async () => {
 watch(
   () => props.modelValue,
   (newValue) => {
-    if (isUpdating) return
+    if (isUpdating || isFocused) return
     
     if (newValue !== null && newValue !== undefined) {
       lastEmittedValue = newValue
@@ -191,11 +199,26 @@ watch(
 )
 
 const emitFocus = (event: FocusEvent) => {
+  isFocused = true
+  
+  // On focus, save the current value without formatting for free editing
+  // This prevents issues with automatic formatting on mobile devices
+  if (_inputRef.value && lastEmittedValue !== null) {
+    const inputElement = _inputRef.value as HTMLInputElement
+    // Save numeric value as string without formatting
+    // This allows the user to edit the value freely
+    const decimalSeparator = props.locale?.includes('ru') || props.locale?.includes('RU') ? ',' : '.'
+    const valueStr = lastEmittedValue.toString().replace('.', decimalSeparator)
+    inputElement.value = valueStr
+  }
+  
   emit('focus', event)
 }
 
 const handleBlur = (event: FocusEvent) => {
-  // При потере фокуса финализируем значение
+  isFocused = false
+  
+  // On blur, finalize the value and apply formatting
   if (_inputRef.value) {
     const inputElement = _inputRef.value as HTMLInputElement
     const rawValue = inputElement.value.trim()
@@ -204,9 +227,28 @@ const handleBlur = (event: FocusEvent) => {
       if (lastEmittedValue !== null) {
         lastEmittedValue = null
         emit('update:modelValue', null)
+        setValue(null)
       }
     } else {
-      handleInput()
+      // Apply formatting through the library on blur
+      const decimalSeparator = props.locale?.includes('ru') || props.locale?.includes('RU') ? ',' : '.'
+      const thousandSeparator = decimalSeparator === ',' ? '.' : ','
+      
+      let cleanedValue = rawValue
+        .replace(new RegExp(`[^\\d${decimalSeparator === ',' ? ',' : '.'}]`, 'g'), '')
+        .replace(new RegExp(`\\${thousandSeparator}`, 'g'), '')
+      
+      if (decimalSeparator === ',') {
+        cleanedValue = cleanedValue.replace(',', '.')
+      }
+      
+      const numValue = parseFloat(cleanedValue)
+      if (!isNaN(numValue)) {
+        lastEmittedValue = numValue
+        emit('update:modelValue', numValue)
+        // Apply library formatting only on blur
+        setValue(numValue)
+      }
     }
   }
   
