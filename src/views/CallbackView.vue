@@ -96,7 +96,10 @@ const proceedWithScenario = async () => {
       .maybeSingle()
 
     if (scenarioError) throw scenarioError
-    if (!scenario?.slug) throw new Error('Scenario slug is missing')
+    if (!scenario?.slug) {
+      await router.replace('/')
+      return
+    }
     cachedScenario.value = {
       id: scenario.id,
       slug: scenario.slug,
@@ -104,7 +107,10 @@ const proceedWithScenario = async () => {
     }
   }
 
-  if (!cachedScenario.value?.slug) throw new Error('Scenario slug is missing')
+  if (!cachedScenario.value?.slug) {
+    await router.replace('/')
+    return
+  }
 
   // Prefetch incomes data before redirect (non-blocking)
   // This will populate the cache so IncomeView can use it immediately
@@ -133,32 +139,32 @@ const proceedWithScenario = async () => {
     })
   }
 
-  // Проверяем, есть ли redirect параметр из query string
-  // Vue Router может вернуть string, string[] или undefined
+  // Check if there's a redirect parameter from query string
+  // Vue Router can return string, string[] or undefined
   const redirectQuery = route.query.redirect
   const redirectPath = Array.isArray(redirectQuery) 
-    ? redirectQuery[0] // Если массив, берем первый элемент
+    ? redirectQuery[0] // If array, take the first element
     : (redirectQuery as string | undefined)
   
-  // Валидация redirect пути для предотвращения open redirect уязвимости
+  // Validate redirect path to prevent open redirect vulnerability
   const isValidInternalPath = (path: string): boolean => {
-    // Должен начинаться с / и быть относительным путем
+    // Must start with / and be a relative path
     if (!path.startsWith('/')) return false
     
-    // Проверяем, что нет протокол-относительных URL (//evil.com)
+    // Check that there are no protocol-relative URLs (//evil.com)
     if (path.startsWith('//')) return false
     
-    // Проверяем, что нет протоколов (http://, https://, javascript:, data: и т.д.)
+    // Check that there are no protocols (http://, https://, javascript:, data:, etc.)
     if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(path)) return false
     
-    // Проверяем, что путь не содержит опасные символы
+    // Check that the path doesn't contain dangerous characters
     if (/[<>"']/.test(path)) return false
     
     return true
   }
   
-  // Если есть redirect и он валидный (безопасный внутренний путь), используем его
-  // Иначе используем дефолтный путь к первому сценарию
+  // If there's a redirect and it's valid (safe internal path), use it
+  // Otherwise use the default path to the first scenario
   const target = redirectPath && typeof redirectPath === 'string' && isValidInternalPath(redirectPath)
     ? redirectPath 
     : `/${cachedScenario.value.slug}/income`
@@ -234,6 +240,12 @@ const fetchUserAndRedirect = async () => {
         slug: scenario.slug,
         base_currency: (scenario.base_currency as CurrencyCode | null) ?? null,
       }
+    }
+
+    // If scenario is not found, redirect to root where router will handle it
+    if (!scenario?.slug) {
+      await router.replace('/')
+      return
     }
 
     // If user is new, skip modal, use default USD (or scenario base currency if present)
