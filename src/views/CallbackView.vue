@@ -212,6 +212,11 @@ const fetchUserAndRedirect = async () => {
       throw error || new Error('User not found')
     }
 
+    // Ensure user.id exists before proceeding
+    if (!data.user.id) {
+      throw new Error('User ID is missing')
+    }
+
     const createdAt = new Date(data.user.created_at).getTime()
     const isNewUser = Date.now() - createdAt < NEW_USER_WINDOW_MS
     cachedUserId.value = data.user.id
@@ -262,7 +267,20 @@ const fetchUserAndRedirect = async () => {
   return
   } catch (error) {
     console.error('Failed to fetch user', error)
-    statusMessage.value = t('scenario_slug_error_message')
+    
+    // Check for session/auth errors
+    if (
+      error instanceof Error && (
+        error.message === 'User ID is missing' ||
+        error.message === 'User not found' ||
+        (error as any)?.status === 401
+      )
+    ) {
+      statusMessage.value = t('session_expired_message')
+    } else {
+      statusMessage.value = t('scenario_slug_error_message')
+    }
+    
     hasError.value = true
     setTimeout(() => router.replace('/auth'), 1500)
   }
