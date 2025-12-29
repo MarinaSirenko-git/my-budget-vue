@@ -10,6 +10,7 @@
         ref="_inputRef"
         :id="inputId"
         type="text"
+        inputmode="decimal"
         :placeholder="placeholder"
         :disabled="disabled"
         :required="required"
@@ -23,7 +24,7 @@
           'focus:outline-none focus:ring-2',
         ]"
         @focus="emitFocus"
-        @blur="emitBlur"
+        @blur="handleBlur"
         @input="handleInput"
       />
     </div>
@@ -47,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, nextTick } from 'vue'
 import { useCurrencyInput } from 'vue-currency-input'
 
 const props = withDefaults(
@@ -89,8 +90,8 @@ const currencyOptions = {
   locale: props.locale,
   valueAsInteger: false,
   precision: 2,
-  distractionFree: false,
-  autoDecimalMode: true,
+  distractionFree: true,
+  autoDecimalMode: false,
   valueRange: {
     min: props.min,
     max: undefined,
@@ -99,14 +100,49 @@ const currencyOptions = {
 
 const { inputRef: _inputRef, setValue, setOptions } = useCurrencyInput(currencyOptions, false)
 
+// Flag to prevent formatting during input
+let isUpdating = false
+let isFocused = false
+
 // Handle input changes
-const handleInput = () => {
-  if (_inputRef.value) {
+const handleInput = async () => {
+  if (isUpdating || !_inputRef.value || !isFocused) return
+  
+  isUpdating = true
+  
+  try {
+    await nextTick()
+    
     const inputElement = _inputRef.value as HTMLInputElement
-    // Get the raw value and convert to number
-    const rawValue = inputElement.value.replace(/[^\d.-]/g, '')
-    const numValue = rawValue ? parseFloat(rawValue) : null
-    emit('update:modelValue', numValue)
+    const rawValue = inputElement.value
+    
+    // Parse value manually without formatting
+    const decimalSeparator = props.locale?.includes('ru') || props.locale?.includes('RU') ? ',' : '.'
+    const thousandSeparator = decimalSeparator === ',' ? '.' : ','
+    
+    let cleanedValue = rawValue
+      .replace(new RegExp(`[^\\d${decimalSeparator === ',' ? ',' : '.'}]`, 'g'), '')
+      .replace(new RegExp(`\\${thousandSeparator}`, 'g'), '')
+    
+    if (decimalSeparator === ',') {
+      cleanedValue = cleanedValue.replace(',', '.')
+    }
+    
+    if (cleanedValue === '' || cleanedValue === '.') {
+      emit('update:modelValue', null)
+      return
+    }
+    
+    const numValue = parseFloat(cleanedValue)
+    
+    if (!isNaN(numValue)) {
+      // Emit value but DON'T call setValue to prevent formatting
+      emit('update:modelValue', numValue)
+    }
+  } finally {
+    setTimeout(() => {
+      isUpdating = false
+    }, 0)
   }
 }
 
@@ -114,6 +150,9 @@ const handleInput = () => {
 watch(
   () => props.modelValue,
   (newValue) => {
+    // Don't format if user is currently typing
+    if (isUpdating || isFocused) return
+    
     if (newValue !== null && newValue !== undefined) {
       setValue(newValue)
     } else if (newValue === null) {
@@ -140,10 +179,58 @@ watch(
 )
 
 const emitFocus = (event: FocusEvent) => {
+  isFocused = true
+  
+  // On focus, show value without formatting for free editing
+  if (_inputRef.value && props.modelValue !== null) {
+    const inputElement = _inputRef.value as HTMLInputElement
+    const decimalSeparator = props.locale?.includes('ru') || props.locale?.includes('RU') ? ',' : '.'
+    const valueStr = props.modelValue.toString().replace('.', decimalSeparator)
+    inputElement.value = valueStr
+  }
+  
   emit('focus', event)
 }
 
-const emitBlur = (event: FocusEvent) => {
+const handleBlur = (event: FocusEvent) => {
+  // Prevent race condition with handleInput
+  if (isUpdating) {
+    // Wait for handleInput to finish
+    setTimeout(() => handleBlur(event), 10)
+    return
+  }
+  
+  isFocused = false
+  
+  // Apply formatting only on blur
+  if (_inputRef.value) {
+    const inputElement = _inputRef.value as HTMLInputElement
+    const rawValue = inputElement.value.trim()
+    
+    if (rawValue === '') {
+      emit('update:modelValue', null)
+      setValue(null)
+    } else {
+      const decimalSeparator = props.locale?.includes('ru') || props.locale?.includes('RU') ? ',' : '.'
+      const thousandSeparator = decimalSeparator === ',' ? '.' : ','
+      
+      let cleanedValue = rawValue
+        .replace(new RegExp(`[^\\d${decimalSeparator === ',' ? ',' : '.'}]`, 'g'), '')
+        .replace(new RegExp(`\\${thousandSeparator}`, 'g'), '')
+      
+      if (decimalSeparator === ',') {
+        cleanedValue = cleanedValue.replace(',', '.')
+      }
+      
+      const numValue = parseFloat(cleanedValue)
+      if (!isNaN(numValue)) {
+        emit('update:modelValue', numValue)
+        // Now apply formatting through library
+        setValue(numValue)
+      }
+    }
+  }
+  
   emit('blur', event)
 }
 
