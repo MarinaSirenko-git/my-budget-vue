@@ -13,9 +13,9 @@
         <transition name="scale">
           <div
             v-if="modelValue"
-            class="relative w-full max-w-lg bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            class="relative flex flex-col w-full max-w-lg max-h-[90vh] bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
           >
-            <div class="flex items-start justify-between px-5 py-4 border-b border-gray-100">
+            <div class="flex flex-shrink-0 items-start justify-between px-5 py-4 border-b border-gray-100">
               <div class="space-y-1">
                 <h3 class="text-lg font-semibold text-gray-900">
                   {{ title }}
@@ -36,11 +36,11 @@
               </button>
             </div>
 
-            <div class="px-5 py-4">
+            <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4">
               <slot name="body" />
             </div>
 
-            <div v-if="$slots.footer" class="px-5 py-4 border-t border-gray-100 bg-gray-50">
+            <div v-if="$slots.footer" class="flex-shrink-0 px-5 py-4 border-t border-gray-100 bg-gray-50">
               <slot name="footer" />
             </div>
           </div>
