@@ -45,6 +45,20 @@
           />
         </div>
 
+        <!-- Payment Start Date -->
+        <div class="space-y-2">
+          <label class="block text-sm font-medium text-gray-700">
+            {{ t('goal_form_payment_start_date_label') }}
+          </label>
+          <input
+            v-model="formData.paymentStartDate"
+            type="date"
+            :min="minDate"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm"
+            :required="true"
+          />
+        </div>
+
         <!-- Target Date -->
         <div class="space-y-2">
           <label class="block text-sm font-medium text-gray-700">
@@ -184,6 +198,7 @@ export interface GoalFormData {
   name: string
   targetAmount: number | null
   currency: CurrencyCode | null
+  paymentStartDate: string | null
   targetDate: string | null
   useSavings: boolean
   selectedSavings: SavingsUsage[]

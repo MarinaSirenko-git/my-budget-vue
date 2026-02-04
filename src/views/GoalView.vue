@@ -361,6 +361,7 @@ const formData = ref<GoalFormData>({
   name: '',
   targetAmount: null,
   currency: null,
+  paymentStartDate: null,
   targetDate: null,
   useSavings: false,
   selectedSavings: [],
@@ -373,6 +374,7 @@ watch(showModal, (isOpen) => {
       name: '',
       targetAmount: null,
       currency: null,
+      paymentStartDate: null,
       targetDate: null,
       useSavings: false,
       selectedSavings: [],
@@ -428,6 +430,7 @@ const handleSubmit = async () => {
   const goalData: any = {
     name: formData.value.name.trim(),
     target_amount: formData.value.targetAmount!,
+    payment_start_date: formData.value.paymentStartDate!,
     target_date: formData.value.targetDate!,
     currency: formData.value.currency!,
     use_savings: formData.value.useSavings,
@@ -477,8 +480,9 @@ const handleEdit = async (goal: Goal) => {
       name: goal.name,
       targetAmount: goal.target_amount,
       currency: goal.currency as CurrencyCode,
+      paymentStartDate: goal.payment_start_date || null,
       targetDate: goal.target_date || null,
-      useSavings: (goal as any).use_savings || false,
+      useSavings: goal.use_savings ?? false,
       selectedSavings: [],
     }
     showModal.value = true
@@ -492,8 +496,9 @@ const handleEdit = async (goal: Goal) => {
     name: goalData.name,
     targetAmount: goalData.target_amount,
     currency: goalData.currency as CurrencyCode,
+    paymentStartDate: goalData.payment_start_date || null,
     targetDate: goalData.target_date || null,
-    useSavings: goalData.use_savings || false,
+    useSavings: goalData.use_savings ?? false,
     selectedSavings: Array.isArray(allocations) && allocations.length > 0
       ? allocations.map((a: any) => ({
           savingsId: a.savings_id || null,

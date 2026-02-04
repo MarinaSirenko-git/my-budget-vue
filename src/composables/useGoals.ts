@@ -15,9 +15,11 @@ export interface Goal {
   name: string
   target_amount: number
   current_amount: number | null
+  payment_start_date: string | null
   target_date: string | null
   currency: string
   scenario_id: string
+  use_savings?: boolean
 }
 
 /**
@@ -217,22 +219,23 @@ export const useGoals = (scenarioId: MaybeRefOrGetter<string | null | undefined>
     const payments: Record<string, number> = {}
     
     goals.value.forEach((goal) => {
-      if (!goal.target_date) {
+      if (!goal.target_date || !goal.payment_start_date) {
         payments[goal.id] = 0
         return
       }
       
       // Calculate total months from creation to target date
-      const createdDate = new Date(goal.created_at)
+      const startDate = new Date(goal.payment_start_date)
       const targetDate = new Date(goal.target_date)
       
       // Set to start of day for accurate calculation
-      createdDate.setHours(0, 0, 0, 0)
+      startDate.setHours(0, 0, 0, 0)
       targetDate.setHours(0, 0, 0, 0)
       
-      const yearsDiff = targetDate.getFullYear() - createdDate.getFullYear()
-      const monthsDiff = targetDate.getMonth() - createdDate.getMonth()
-      const totalMonths = Math.max(1, yearsDiff * 12 + monthsDiff)
+      const yearsDiff = targetDate.getFullYear() - startDate.getFullYear()
+      const monthsDiff = targetDate.getMonth() - startDate.getMonth()
+      // n_months inclusive: (Y2·12 + M2) − (Y1·12 + M1) + 1
+      const totalMonths = Math.max(1, yearsDiff * 12 + monthsDiff + 1)
       
       // Get total allocations for this goal (in goal currency)
       const allocationsTotal = allAllocations.value

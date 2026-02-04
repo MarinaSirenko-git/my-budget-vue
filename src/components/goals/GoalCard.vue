@@ -113,36 +113,35 @@ const baseCurrency = computed<CurrencyCode | null>(() => {
 
 // Calculate months from creation to target date
 const totalMonthsFromCreation = computed(() => {
-  if (!props.goal.target_date) return 0
+  if (!props.goal.target_date || !props.goal.payment_start_date) return 0
   
-  const createdDate = new Date(props.goal.created_at)
+  const startDate = new Date(props.goal.payment_start_date)
   const targetDate = new Date(props.goal.target_date)
   
   // Set to start of day for accurate calculation
-  createdDate.setHours(0, 0, 0, 0)
+  startDate.setHours(0, 0, 0, 0)
   targetDate.setHours(0, 0, 0, 0)
   
-  // Calculate difference in months
-  const yearsDiff = targetDate.getFullYear() - createdDate.getFullYear()
-  const monthsDiff = targetDate.getMonth() - createdDate.getMonth()
-  const totalMonths = yearsDiff * 12 + monthsDiff
-  
+  // n_months inclusive: (Y2·12 + M2) − (Y1·12 + M1) + 1
+  const yearsDiff = targetDate.getFullYear() - startDate.getFullYear()
+  const monthsDiff = targetDate.getMonth() - startDate.getMonth()
+  const totalMonths = yearsDiff * 12 + monthsDiff + 1
   return Math.max(1, totalMonths) // At least 1 month
 })
 
 // Calculate months from creation to today
 const monthsFromCreation = computed(() => {
-  const createdDate = new Date(props.goal.created_at)
+  const startDate = new Date(props.goal.created_at)
   const today = new Date()
   
   // Set to start of day for accurate calculation
-  createdDate.setHours(0, 0, 0, 0)
+  startDate.setHours(0, 0, 0, 0)
   today.setHours(0, 0, 0, 0)
   
   // Calculate difference in months
-  const yearsDiff = today.getFullYear() - createdDate.getFullYear()
-  const monthsDiff = today.getMonth() - createdDate.getMonth()
-  const totalMonths = yearsDiff * 12 + monthsDiff
+  const yearsDiff = today.getFullYear() - startDate.getFullYear()
+  const monthsDiff = today.getMonth() - startDate.getMonth()
+  const totalMonths = yearsDiff * 12 + monthsDiff +1
   
   return Math.max(0, totalMonths)
 })
@@ -161,7 +160,7 @@ const monthsUntilTarget = computed(() => {
   // Calculate difference in months
   const yearsDiff = targetDate.getFullYear() - today.getFullYear()
   const monthsDiff = targetDate.getMonth() - today.getMonth()
-  const totalMonths = yearsDiff * 12 + monthsDiff
+  const totalMonths = yearsDiff * 12 + monthsDiff + 1
   
   // If target date is in the past, return 0
   if (totalMonths < 0) return 0
