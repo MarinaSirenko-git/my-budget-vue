@@ -285,32 +285,10 @@ const goalMutation = useMutation({
     
     console.error('Failed to save goal:', error)
   },
-  onSuccess: (data, _variables) => {
+  onSuccess: (_variables) => {
     const currentUserId = userId.value
     const currentScenarioId = scenario.value?.id
     if (!currentUserId || !currentScenarioId) return
-
-    const queryKey = queryKeys.goals.list(currentUserId, currentScenarioId)
-    
-    // Update with real data from server
-    queryClient.setQueryData<Goal[]>(queryKey, (old) => {
-      if (!old) return [data]
-      
-      if (editingGoalId.value) {
-        // Update existing goal
-        return old.map((goal) => (goal.id === editingGoalId.value ? data : goal))
-      } else {
-        // Replace first optimistic goal (temp ID) with real one
-        const tempIndex = old.findIndex((g) => g.id.startsWith('temp-'))
-        if (tempIndex !== -1) {
-          const newList = [...old]
-          newList[tempIndex] = data
-          return newList
-        }
-        // If no temp found, just add the new one
-        return [data, ...old]
-      }
-    })
 
     // Invalidate and refetch related queries for immediate update
     queryClient.invalidateQueries({ queryKey: queryKeys.goals.all })

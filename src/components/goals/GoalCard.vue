@@ -131,7 +131,9 @@ const totalMonthsFromCreation = computed(() => {
 
 // Calculate months from creation to today
 const monthsFromCreation = computed(() => {
-  const startDate = new Date(props.goal.created_at)
+  if (!props.goal.payment_start_date) return 0
+  
+  const startDate = new Date(props.goal.payment_start_date)
   const today = new Date()
   
   // Set to start of day for accurate calculation
@@ -141,7 +143,7 @@ const monthsFromCreation = computed(() => {
   // Calculate difference in months
   const yearsDiff = today.getFullYear() - startDate.getFullYear()
   const monthsDiff = today.getMonth() - startDate.getMonth()
-  const totalMonths = yearsDiff * 12 + monthsDiff +1
+  const totalMonths = yearsDiff * 12 + monthsDiff + 1
   
   return Math.max(0, totalMonths)
 })
@@ -209,7 +211,7 @@ const calculatedCurrentAmount = computed(() => {
     const baseAmount = props.goal.current_amount || 0
     return baseAmount + goalAllocationsTotal.value
   }
-  
+
   const monthsPassed = monthsFromCreation.value
   const monthlyPayment = monthlyPaymentFromCreation.value
   
